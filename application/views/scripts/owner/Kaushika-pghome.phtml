@@ -1,0 +1,125 @@
+<div class="cntnt">
+    <ol class="breadcrumb  margin_top100">
+  </ol>
+    <h2 class="btn btn-block btn-danger col-sm-12 "> PG Details</h2>
+	 
+	
+	
+	
+<?php
+$postUrl = $this->url(array(
+    'controller' => 'Owner',
+    'action' => 'kaushika-pghome'
+        ));
+?> 
+        <form role="form" method="post" action="<?php echo $postUrl; ?>" name="home-details" id="home-details">
+    <?php if ($this->form->getMessages()) { ?>
+        <div><ul>
+                <?php
+                $form_errors = $this->form->getMessages();
+				
+                foreach ($form_errors as $field => $arrErrors) {
+                    echo '<li>' . $this->formErrors($arrErrors) . '</li>';
+                }
+                ?>
+            </ul></div>
+			
+	<?php } ?>
+	  <div class="site-section site-section-sm">
+      <div class="container">
+        <div class="row">
+		<?php
+    if ($this->errorMessage) {
+        echo "<h4 class='alert-danger'>" . $this->errorMessage . "</h4>";
+    }
+    ?>     
+               <div class="col-md-12 col-lg-8 mb-5">
+               <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+                  <label class="font-weight-bold" for="name">Name</label>
+                  <?php echo $this->form->name; ?>
+                </div>
+              </div>
+                 <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+                  <label class="font-weight-bold" for="location">Location</label>
+                  <?php echo $this->form->location; ?>
+                </div>
+              </div>
+				<div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+				<label class="font-weight-bold" for="rent">Rent Per Month</label>
+                                <?php echo $this->form->rent; ?>
+                 
+               </div>
+               </div>
+                  <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+								<label class="font-weight-bold" for="rooms">No.of Rooms</label>
+                                <?php echo $this->form->rooms; ?>
+                                </div>
+                                </div>
+                          
+               <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+								<label class="font-weight-bold" for="address">Address</label>
+                                <?php echo $this->form->address; ?>
+                                </div>
+                                </div>
+			  
+           
+            <h1 class="mb-5"> Facilities </h1>
+         
+			<div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+								<label class="font-weight-bold" for="balcony">Balcony</label>
+                                <?php echo $this->form->balcony; ?>
+                                </div>
+                                </div>	
+								<div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+								<label class="font-weight-bold" for="electricity">Electricity</label>
+                                <?php echo $this->form->electricity; ?>
+                                </div>
+                                </div>
+								<div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+								<label class="font-weight-bold" for="parking">CarParking</label>
+                                <?php echo $this->form->parking; ?>
+                                </div>
+                                </div>
+								<div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+								<label class="font-weight-bold" for="security">Security</label>
+                                <?php echo $this->form->security; ?>
+                                </div>
+                                </div>
+								<div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+								<label class="font-weight-bold" for="fireexit">Fire Exit</label>
+                                <?php echo $this->form->fireexit; ?>
+                                </div>
+                                </div>
+								<div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+								<label class="font-weight-bold" for="airconditioned">Fully Air Conditioned</label>
+                                <?php echo $this->form->airconditioned; ?>
+                                </div>
+                                </div>
+								
+			<div class="col-md-12 col-sm-12 text-center">
+            <div class="form-group">
+			<div align="left">
+                <button type="submit" name="Submit" class="btn btn-default btn-warning text-center" id="sechemSearchButton">Submit</button>
+				
+            </div>
+		    </div>   
+		</div>
+		<div class="contact-us-img"><img src="<?php echo $this->baseUrl("imagesorg/download (9).jpg"); ?>" alt="Contact Us" align="right" style="width:30%" ></div>
+	<div class="contact-us-img"><img src="<?php echo $this->baseUrl("imagesorg/images (13).jpg"); ?>" alt="Contact Us" align="right" style="width:30%"></div>
+		<div class="contact-us-img"><img src="<?php echo $this->baseUrl("imagesorg/images (15).jpg"); ?>" alt="Contact Us" align="right" style="width:30%"></div>
+	
+        </div>  
+        </form>
+          
+                        

@@ -1,0 +1,54 @@
+<?php
+
+require_once 'Zend/Session.php';
+$this->controller_name = Zend_Controller_Front::getInstance()->getRequest()->getControllerName();
+$this->method_name = Zend_Controller_Front::getInstance()->getRequest()->getActionName();
+
+?>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Paying Guest </title>
+	<h2 class="btn btn-block btn-danger col-sm-12 "  >Paying Guest Accomdation System </h2>
+	<div class="btn btn-block btn btn btn-warning col-sm-12">
+	<h5  align="right"><a href="/Payingguest/Admin">ADMIN</a></h5>
+	</div>
+	
+	
+	
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link href="https://fonts.googleapis.com/css?family=Playfair+Display:400,700|Work+Sans:300,400,700" rel="stylesheet">
+    <link rel="stylesheet" href="fonts/icomoon/style.css">
+
+    <link rel="stylesheet" href="<?php echo $this->baseUrl('css/bootstrap.min.css'); ?>">
+    <link rel="stylesheet" href="<?php echo $this->baseUrl('css/magnific-popup.css'); ?>">
+    <link rel="stylesheet" href="<?php echo $this->baseUrl('css/jquery-ui.css'); ?>">
+    <link rel="stylesheet" href="<?php echo $this->baseUrl('css/owl.carousel.min.css'); ?>">
+    <link rel="stylesheet" href="<?php echo $this->baseUrl('css/owl.theme.default.min.css'); ?>">
+    <link rel="stylesheet" href="<?php echo $this->baseUrl('css/bootstrap-datepicker.css'); ?>">
+    <link rel="stylesheet" href="<?php echo $this->baseUrl('css/animate.css'); ?>">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mediaelement@4.2.7/build/mediaelementplayer.min.css">
+    
+    
+    
+    <link rel="stylesheet" href="<?php echo $this->baseUrl('fonts/flaticon/font/flaticon.css');?>">
+  
+    <link rel="stylesheet" href="<?php echo $this->baseUrl('css/aos.css');?>">
+
+    <link rel="stylesheet" href="<?php echo $this->baseUrl('css/style.css');?>">
+    
+  </head>
+  <body>
+       
+        
+        <?php echo $this->render('header.phtml'); ?>
+         <?php echo $this->layout()->content ?>
+        <?php echo $this->render('footer.phtml'); ?>
+        <div class="clr"></div>
+        
+
+    </body>
+</html>

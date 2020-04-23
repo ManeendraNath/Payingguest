@@ -1,0 +1,62 @@
+<div class="cntnt">
+    <ol class="breadcrumb  margin_top100">
+  </ol>
+   
+	
+<h2 class="btn btn-block btn-danger col-sm-12 "> welcome owner </h2>	
+ <div class="col-10">
+                <nav class="site-navigation text-right  " role="navigation">
+                  <div class="container">
+                    
+                   
+                    <ul class="site-menu js-clone-nav d-none d-lg-block">
+                   <!-- <h3><a href="/payingguest/">Logout</a> </h3> -->
+					<input type="button"  value="Logout"onclick="window.location.href='/payingguest/'" />	
+						</ul>
+                  </div>
+                </nav>
+              </div>	
+<?php
+$postUrl = $this->url(array(
+    'controller' => 'Owner',
+    'action' => 'owner-information'
+        ));
+?>
+       
+	   <form role="form" method="post" action="<?php echo $postUrl; ?>" name="booking-details" id="booking-details">
+    
+	<div class="site-section site-section-sm">
+      <div class="container">
+        <div class="row">
+		<?php
+    if ($this->errorMessage) {
+        echo "<h4 class='alert-danger' >" . $this->errorMessage . "</h4>";
+    }
+    ?>    
+         
+						
+        <div class="col-md-12 col-sm-12 text-center">
+		<div class="form-group" >
+       <input type="button"  value="Upload PG information"onclick="window.location.href='pg-owner'" />	
+	<input type="button" value="Total Booking Details "onclick="window.location.href='total-booking'" /> 
+	 <input type="button" value="Edit Owner Details "onclick="window.location.href='index'" />	
+<br><!--<input type="button" value="Logout" onclick="window.location.href='#" />	-->
+
+
+	 <input type="button" value="Edit Owner Details "onclick="window.location.href='/Payingguest/image/image'" />	
+			 </div>	
+			 </div>
+           
+			
+                         
+			
+</div>		
+ 	
+</div>		
+        
+                </div>  
+				
+         			
+            </form>
+          
+                        

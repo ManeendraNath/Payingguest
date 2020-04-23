@@ -1,0 +1,92 @@
+<?php
+$user = new Zend_Session_Namespace('user_session');
+$captchanew = new Zend_Session_Namespace('captchanew');
+$captchanew->captchanew = session_id();
+?>
+
+<div class="cntnt table-responsive">
+
+    <ol class="breadcrumb  margin_top10" id="breadcrumbId">
+        <li><a href="<?php echo $this->baseUrl("/"); ?>"><?php echo home; ?></a></li>
+        <li class="active">Assign Scheme</li>
+    </ol>
+
+    <h2 class="btn btn-block btn-danger">Assign Scheme</h2>
+    <?php if ($this->success_message) { ?>	
+        <div class="success-msg margin_top20"> <?php echo $this->success_message; ?></div>
+    <?php } ?>	
+    <?php if ($this->error_message) { ?>	
+        <div class="success-msg margin_top20"> <?php echo $this->error_message; ?></div>
+    <?php } ?>	
+    <table id="user_table">					 
+        <thead>
+            <tr>
+                <th scope="col">S.No</th> 
+                <th scope="col">User Name</th>
+                <th scope="col">First Name</th>
+                <th scope="col">Last Name</th>
+                <th scope="col">Email</th>
+                <th scope="col">Mobile</th>
+                <th scope="col">Designation</th>
+                <th scope="col">Role</th>
+                <th scope="col">Ministry Name</th>
+                <th scope="col">Assigned Scheme(s) Name</th>
+                <th scope="col">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php
+            $inc = 1;
+            foreach ($this->scheme_owner_details as $skey => $sval) {
+                ?>
+                <tr>
+                    <td><?php echo $inc; ?></td>
+                    <td><?php echo $sval['user_name']; ?></td>
+                    <td><?php echo $sval['user_first_name']; ?></td>
+                    <td><?php echo $sval['user_last_name']; ?></td>
+                    <td><?php echo $sval['user_email']; ?></td>
+                    <td><?php echo $sval['user_mobile']; ?></td>
+                    <td><?php echo $sval['user_designation']; ?></td>
+                    <td><?php echo $sval['role_name']; ?></td>
+                    <td><?php echo $sval['ministry_name']; ?></td>
+                    <td>
+                        <?php
+                        if (isset($sval['assigned_schemes'])) {
+                            echo '<ul>';
+                            foreach ($sval['assigned_schemes'] as $askey1 => $asval1) {
+                                echo '<li>' . $asval1 . '</li>';
+                            }
+                            echo '</ul>';
+                        }
+                        ?>
+                    </td>
+                    <td>
+                        <a href='<?php echo $this->baseUrl('user/assign-scheme'); ?>?ministry_id=<?php echo base64_encode($sval['ministry_id']); ?>&user_id=<?php echo base64_encode($sval['user_id']); ?>'>Assign Scheme</a>
+                    </td>
+                </tr>
+                <?php
+                $inc++;
+            }
+            ?>
+        </tbody>
+    </table>
+</div>
+<script src="<?php echo $this->baseUrl('js/jquery.dataTables.min.js'); ?>" nonce="<?php echo $user->nonce_str; ?>"></script>
+<link rel="STYLESHEET" type="text/css" href="<?php echo $this->baseUrl('css/jquery.dataTables.min.css'); ?>">
+<script nonce="<?php echo $user->nonce_str; ?>">
+
+    $(document).ready(function () {
+
+        $('#user_table').DataTable({
+            "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+            'processing': true,
+            'serverSide': false,
+            "pageLength": 50,
+            "dom": '<"left"if>rt<"bottom"pl><"clear">'
+        });
+
+        $('#user_table_filter input').addClass('light-table-filter form-control');
+        $('#user_table_wrapper select').addClass('form-control');
+    });
+
+</script>		

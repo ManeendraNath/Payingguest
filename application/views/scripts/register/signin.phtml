@@ -1,0 +1,87 @@
+<?php
+//$registration_details = $this->registration_details;
+//?>
+
+   <div class="cntnt">
+    <ol class="breadcrumb  margin_top100">
+	</ol>
+	
+	<center><div class="contact-us-img"><img src="<?php echo $this->baseUrl("imagesorg/images17.jpg"); ?>" alt="Contact Us" align="RIGHT" style="width:30%" ></div></center>
+<?php
+$postUrl = $this->url(array(
+    'controller' => 'Register',
+    'action' => 'signin'
+        ));
+?>
+        <form role="form" method="post" action="<?php echo $postUrl; ?>" name="login-in" id="login-in">
+    <?php if ($this->form->getMessages()) { ?>
+        <div><ul>
+                <?php
+                $form_errors = $this->form->getMessages();
+				
+                foreach ($form_errors as $field => $arrErrors) {
+                    echo '<li>' . $this->formErrors($arrErrors) . '</li>';
+                }
+                ?>
+            </ul></div>
+			
+	<?php } ?>
+	 <?php
+    if ($this->error_message) {
+        echo "<div class='error-msg'>" . $this->error_message . "</div>";
+    }
+    ?> <div class="site-section site-section-sm">
+      <div class="container">
+        <div class="row">
+       
+          <div class="col-md-12 col-lg-8 mb-5">
+          
+            
+          
+
+              <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+					<h3><center><label class="btn btn-block btn-info col-sm-12" for="name">REGISTER</label></h3>
+                  <h3><center><label class="font-weight-bold" for="emailaddress">Email Address</label>
+                 <?php echo $this->form->emailaddress; ?></h3>
+                </div>
+              </div>
+             
+
+
+             
+
+              <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+                 <h3><center><label class="font-weight-bold" for="password">Password</label>
+                 <?php echo $this->form->password; ?></h3>
+                </div>
+              </div>
+			  
+                                
+             
+			 <div class="col-md-12 col-sm-12 text-center">
+            <div class="form-group">
+			<h3><center><div >
+                <button type="submit" name="Submit" class="btn btn-default btn-warning text-center" id="sechemSearchButton">Sign-in</button>
+            </div></h3>
+		</div>
+		
+                               
+								
+                          
+                        </div>
+						 <h3><center><div class="row form-group">
+                        <div class="col-md-12 mb-3 mb-md-0"> Don't have an account?
+                                         <a href="<?php echo $this->baseUrl('/register/register'); ?>">Sign up</a>
+                                    </div>
+                        </div></h3>
+              	
+              	
+            </div>
+                </div>  
+         			
+            </form>
+           </div>
+               </div>          
+                                   

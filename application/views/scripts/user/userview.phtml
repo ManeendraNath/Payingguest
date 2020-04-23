@@ -1,0 +1,198 @@
+<?php 
+$userid = new Zend_Session_Namespace('userid');
+$unme= $userid->userid;
+$role = new Zend_Session_Namespace('role');
+ $captchanew = new Zend_Session_Namespace('captchanew');
+    $captchanew->captchanew = session_id();
+$userinfodata = $_SESSION['userinfodata'];
+?>
+<h2 class="btn btn-block btn-danger col-sm-12">Manage Users</h2>
+<script type="text/javascript" language="javascript">
+$(document).ready(function(){
+// Atleast One checkbox should be selected.	
+ $("#frmuser").submit(function(){
+    var checked = $("#frmuser input:checked").length > 0;
+    if (!checked){
+        alert("<?php echo SELECT_USERS_ACTIVATE_DEACTIVATE;?>");
+        return false;
+    }
+});
+
+	var name = '<?php echo base64_encode($userinfodata["username"]); ?>';
+	var id = '<?php echo base64_encode($userinfodata["id"]); ?>';
+	var email = '<?php echo base64_encode($userinfodata["email"]); ?>';
+	var fname = '<?php echo base64_encode($userinfodata["firstname"]); ?>';
+	var lname = '<?php echo base64_encode($userinfodata["lastname"]); ?>';
+	if(name && email && id) {
+		var helpdeskurl = '<?php echo SSO_AJAX_PATH; ?>/create_user';
+		// alert(helpdeskurl);
+		var datastring = 'name='+name+'&email='+email+'&lid='+id+'&fname='+fname+'&lname='+lname;
+		$.ajax({
+			url : helpdeskurl,
+			data : datastring,
+			type : "POST",
+			success:function(response){
+				 //alert(response);
+			}
+		});
+	}
+
+
+});
+</script>
+
+<div class="cntnt">			
+    <?php
+        $cmidata = $this->cmidata;
+	
+        $Count = $this->counttotalusers;
+	
+    ?>
+    <?php 
+        if($this->successMsg){
+            echo "<div class='success-msg'>".$this->successMsg."</div>"; 
+        }
+	else if($this->errorMessage){
+            echo "<div class='error-msg'>".$this->errorMessage."</div>"; 
+        }
+    ?>
+	
+ <!-- search form -->
+	<form class="form-inline" role="form" method="get">			
+		<div class="col-md-6 col-sm-12">
+			<div class="form-group margin-left-15">
+			 <label><?php echo SEARCH_BY; ?></label><input type="search" class="light-table-filter form-control" data-table="order-table" placeholder="User Name,Full Name,Email">
+			</div>
+		</div>
+	</form>
+<!-- end---->
+
+<div class="col-md-6 col-sm-12 text-right">
+<a class="btn btn-warning" href="<?php echo $this->baseUrl('user/add'); ?>" title="Add New User">Add New User</a>
+<a class="btn btn-warning margin-right-15" href="<?php echo $this->baseUrl('/assignmanager'); ?>" title="Add New User">Assign Scheme</a>
+</div>
+
+
+<div class="col-sm-12 col-xs-6 text-center record_box">
+<?php echo $Count . " User(s) Found";?>
+</div>
+
+    <? $postUrl = $this->url(array(
+                    'controller' => 'user',
+                    'action'  => 'userinactive'
+                    )); 
+		    
+    ?>
+    <form  class="form-inline webform-client-form" role="form" accept-charset="UTF-8" method="post" action="<?=$postUrl?>" id="frmuser">   
+    <table id="myTable" class="order-table table">					 
+            <thead>
+                <tr>
+                    <th>#</th> 
+                    <th>SNo.</th>
+                    <th>User name</th>
+                    <th>Full Name</th>
+                    <th>Mobile Number</th>
+                    <th>Email Id</th>
+                    <th>Status</th>
+                    <th>Block Status</th>
+                    <th>Role</th>
+                    <th>Edit</th>
+                    <!--<th>Delete</th>-->
+                </tr>
+            </thead>
+            <tbody>
+                <?php if($Count==0){ ?>
+                        <tr>
+                            <td colspan="10" align="center" bgcolor="#FFFFFF" class="alert"><?php echo RECORD_EMPTY;?></td></tr>
+                <?PHP }else{ ?>
+                                <?php
+				
+                                $i=1;
+                                foreach ($cmidata as $key => $val){	?>
+                                    <tr>
+                                        <td><input type="checkbox" name="roleid[<?php echo $val['uid'];?>]" id="roleid"></td>
+                                        <td><?php echo $i+$this->start;?></td>
+                                        <td><?php echo $this->escape($val['username']);?></td>
+                                        <td><?php echo $this->escape($val['firstname'])." ".$this->escape($val['lastname']);?></td>
+                                        
+                                        <td><?php echo $this->escape($val['mobile']);?></td>
+                                        <td><?php echo $this->escape($val['email']);?></td>
+                                        <td> <?php echo ($this->escape($val['userstatus']==1))?"Active":"Inactive";?></td>
+                                        <td> <?php echo ($this->escape($val['lock_status']==1))?"--":"Blocked";?></td>
+                                        <td><?php  echo $this->escape($val['title']);?></td>
+                                        <?php $cmiurl = $this->url(array(
+                                                'controller' => 'user',
+                                                'action' => 'useredit'
+                                                ))."?id=".$this->escape($val['uid']."&stateid=".base64_encode($val['stateid'])); 
+                                        ?>
+                                        <td><a href="<?php echo $cmiurl;?>" class="menu1">Edit</a></td>
+                                      <!--  <td><?php //$username= "'".$this->escape($val['username'])."'"; ?>
+                                            <a href="delete/id/<?php //echo $this->escape($val['uid']); ?>" onclick="return confirm('Are you sure you want to delete this user <?php  //echo addslashes($username);?> ?');" class="menu1">Delete</a>
+                                        </td>-->
+                                    </tr>
+                                    <?php ++$i; 
+                                }
+                        }?>
+            </tbody>
+        </table>
+        <div class="status">
+            <select class="form-control" name="status" id="statusId">
+                <option value="1">Active</option>
+                <option value="0">Inactive</option>
+            </select>
+	     <input type="hidden"  name ="sessionCheck" value="<?php echo $captchanew->captchanew;?>" />
+              <button class="btn btn-default btn-warning text-center rolBtn" type="Submit" name="Submit">Submit</button>
+           <!-- <input class="rolBtn" type="Submit" name="Submit" value="Submit"/>-->
+        </div>
+    </form>
+    <?php
+    echo $this->paginate;
+    ?>
+</div>
+<script>
+(function(document) {
+	'use strict';
+
+	var LightTableFilter = (function(Arr) {
+
+		var _input;
+
+		function _onInputEvent(e) {
+			_input = e.target;
+			var tables = document.getElementsByClassName(_input.getAttribute('data-table'));
+			Arr.forEach.call(tables, function(table) {
+				Arr.forEach.call(table.tBodies, function(tbody) {
+					Arr.forEach.call(tbody.rows, _filter);
+				});
+			});
+		}
+
+		function _filter(row) {
+			var text = row.textContent.toLowerCase(), val = _input.value.toLowerCase();
+			row.style.display = text.indexOf(val) === -1 ? 'none' : 'table-row';
+		}
+
+		return {
+			init: function() {
+				var inputs = document.getElementsByClassName('light-table-filter');
+				Arr.forEach.call(inputs, function(input) {
+					input.oninput = _onInputEvent;
+				});
+			}
+		};
+	})(Array.prototype);
+
+	document.addEventListener('readystatechange', function() {
+		if (document.readyState === 'complete') {
+			LightTableFilter.init();
+		}
+	});
+
+})(document);
+
+
+
+</script>
+
+
+

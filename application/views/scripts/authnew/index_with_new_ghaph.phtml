@@ -1,0 +1,996 @@
+<?php 
+$user = new Zend_Session_Namespace('user_session');
+$frontdata = $this->mainpage; 
+$state_list = $this->state_list;
+$state_wise_report = $this->state_wise_report;
+$home_page_chart_data = $this->home_page_chart_data;
+$graph_data = $this->graph_data;
+
+$fyyear = array();
+$noofscheme = array();
+$fyfundtransfer = array();
+foreach ($graph_data as $key=>$val){
+	$fyyear[$key] = $val['fyyear'];
+	$noofscheme[$key] = $val['number_of_schemes'];
+	$otherfunds[$key] = $val['other_fund'];
+	$fyfundtransfer[$key] = $val['total_fund_transfer'];
+}
+// echo "'".implode("','",$fyyear)."'"; exit;
+//$saving_data=$this->saving_data;
+
+ $current_fynw = $this->current_fynw;
+// echo "<pre>";
+// print_r($home_page_chart_data);exit;
+//this function is use for the display inidian currency data
+function currencyData1($rs = null){
+	setlocale(LC_MONETARY, 'en_IN');
+	$amount = money_format('%!i', $rs);
+	//$amount=explode('.',$amount); //Comment this if you want amount value to be 1,00,000.00
+	return $amount;
+}
+function currencyData($rs = null){
+	setlocale(LC_MONETARY, 'en_IN');
+	$amount = money_format('%!i', $rs);
+	$amount=explode('.',$amount); //Comment this if you want amount value to be 1,00,000.00
+	return $amount[0];
+}
+function amountFormat($amount = null){
+	if ($amount > 9999999){
+		$formatedAmount = currencyData(round($amount / 10000000, 2)).' Cr+';
+	} else {
+		$formatedAmount = currencyData($amount);
+	}
+	return $formatedAmount;
+}
+
+function no_to_words($no)
+{
+    if($no == 0 || $no == '') {
+		$no = 0;
+        return $no;
+    }else {
+		$n =  strlen($no); // 7
+		//$pow = pow(10,$n);
+        switch ($n) {
+			case 1:
+                $finalval =  currencyData($no);
+                break;
+			case 2:
+                $finalval =  currencyData($no);
+                break;
+            case 3:
+                // $val = $no/100;
+                // $val = round($val, 2);
+                $finalval =  currencyData($no);
+                break;
+            case 4:
+                // $val = $no/1000;
+                // $val = round($val, 2);
+                $finalval =  currencyData($no);
+                break;
+            case 5:
+                // $val = $no/1000;
+                // $val = round($val, 2);
+                $finalval =  currencyData($no);
+                break;
+            case 6:
+                $val = $no/100000;
+                $val = round($val, 2);
+                $finalval =  currencyData1($val) ." Lakh";
+                break;
+            case 7:
+                $val = $no/100000;
+                $val = round($val, 2);
+                $finalval =  currencyData1($val) ." Lakh";
+                break;
+            case 8:
+                $val = $no/10000000;
+                $val = round($val, 2);
+                $finalval =  currencyData1($val) ." Cr+";
+                break;
+          
+            default:
+               $val = $no/10000000;
+               $val = round($val, 2);
+               $finalval =  currencyData1($val) ." Cr+";
+               break;
+        }
+        return $finalval;
+ 
+    }
+}
+
+function no_to_words_cr($no)
+{
+    if($no == 0 || $no == '') {
+		$no = 0;
+        return $no;
+    }else {
+		$n =  strlen($no); // 7
+		//$pow = pow(10,$n);
+        switch ($n) {
+			case 1:
+                $finalval =  currencyData($no);
+                break;
+			case 2:
+                $finalval =  currencyData($no);
+                break;
+            case 3:
+                // $val = $no/100;
+                // $val = round($val, 2);
+                $finalval =  currencyData($no);
+                break;
+            case 4:
+                // $val = $no/1000;
+                // $val = round($val, 2);
+                $finalval =  currencyData($no);
+                break;
+            case 5:
+                // $val = $no/1000;
+                // $val = round($val, 2);
+                $finalval =  currencyData($no);
+                break;
+            case 6:
+                $val = $no/100000;
+                $val = round($val, 2);
+                $finalval =  currencyData1($val) ." Lakh";
+                break;
+            case 7:
+                $val = $no/100000;
+                $val = round($val, 2);
+                $finalval =  currencyData1($val) ." Lakh";
+                break;
+            case 8:
+                $val = $no/10000000;
+                $val = round($val, 2);
+                $finalval =  currencyData1($val) ." Cr";
+                break;
+          
+            default:
+               $val = $no/10000000;
+               $val = round($val, 2);
+               $finalval =  currencyData1($val) ." Cr";
+               break;
+        }
+        return $finalval;
+ 
+    }
+}
+
+?>
+
+
+    <!-- Here is pasrt that show the chart for the page -->
+	<script nonce="<?php echo $user->nonce_str; ?>" type="text/javascript" src="<?php echo $this->baseUrl('js/highcharts/highcharts-home.js') ?>"></script> 
+	<script nonce="<?php echo $user->nonce_str; ?>" type="text/javascript" src="<?php echo $this->baseUrl('js/highcharts/highcharts-more.js') ?>"></script> 
+	<script nonce="<?php echo $user->nonce_str; ?>" type="text/javascript" src="<?php echo $this->baseUrl('js/highcharts/solid-gauge.js') ?>"></script> 
+	<script nonce="<?php echo $user->nonce_str; ?>" type="text/javascript" src="<?php echo $this->baseUrl('js/highcharts/highcharts-scheme-home.js') ?>"></script> 
+    <script nonce="<?php echo $user->nonce_str; ?>" type="text/javascript" src="<?php echo $this->baseUrl('js/highcharts/highcharts-3d-scheme.js') ?>"></script> 
+	
+	<!-- Heighchart -->
+	<script nonce="<?php echo $user->nonce_str; ?>" type="text/javascript" src="<?php echo $this->baseUrl('js/highcharts/highcharts.js') ?>"></script> 
+	<script nonce="<?php echo $user->nonce_str; ?>" type="text/javascript" src="<?php echo $this->baseUrl('js/highcharts/exporting.js') ?>"></script> 
+
+    	
+
+
+
+    <!-- Here is pasrt that show the chart for the page -->
+
+	<!--<script type="text/javascript" src="<?php //echo $this->baseUrl('js/highcharts/highcharts-3d.js') ?>"></script> -->
+	
+		<script type="text/javascript" nonce="<?php echo $user->nonce_str; ?>">
+		
+		
+		//start state data call on india map	
+	function calc_amount(ids,state_name, total_fund, total_beneficiary){
+            //alert(ids);
+            var state_name=state_name;
+            var total_fund=total_fund;
+            var total_beneficiary=total_beneficiary;
+            $.ajax({
+                     url : "<?php echo $this->baseUrl("report/ajaxmapdata"); ?>?state_id="+ids,
+                     type : "GET",
+                     success:function(response){
+                        var fund_detail=response.split('~');
+                        document.getElementById('state_name').innerHTML=state_name;
+                        document.getElementById('total_fund').innerHTML="Total DBT Transfer :"+fund_detail[0]+"";
+                        document.getElementById('total_beneficiary').innerHTML="No. of Transactions :"+fund_detail[1];
+                       }
+                 });
+        }
+   
+	//end state data call on india map	
+	
+	
+        
+        
+        
+        
+	// start beneficary graph
+	$(function () {
+		var cash_a,kind_a,others_a,cash,kind,others;
+
+		cash = <?php if ($frontdata['beneficiary_in_cash'] != ''){ echo $frontdata['beneficiary_in_cash'];} else { echo "0
+";} ?>;
+		kind = <?php if ($frontdata['beneficiary_in_kind'] != ''){ echo $frontdata['beneficiary_in_kind'];} else { echo "0";} ?>;
+		others = <?php if ($frontdata['beneficiary_other'] != ''){ echo $frontdata['beneficiary_other'];} else { echo "0";} ?>;
+
+		cash_a = parseInt(cash);
+		kind_a = parseInt(kind);
+		others_a = parseInt(others);
+
+    $('.beneficary-graph').highcharts({
+        chart: {
+            plotBackgroundColor: null,
+            plotBorderWidth: 0,
+            plotShadow: false
+        },
+       /* title: {
+            text: 'Browser<br>shares<br>2015',
+            align: 'center',
+            verticalAlign: 'middle',
+            y: 60
+        },*/
+        
+		
+	 tooltip: { //enabled: false,
+	   headerFormat: '<b>{point.key}</b><br>',
+            pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+        },
+		
+		
+		
+        plotOptions: {
+						
+            pie: {
+                dataLabels: {
+                    enabled: true,
+					formatter: function() {
+						 if (this.y != 0) {
+          return Math.round(this.percentage*100)/100 + ' %';
+        } else {
+          return null;
+        }
+                       
+                    },
+                    distance: -20,
+                    style: {
+                        fontWeight: 'bold',
+                        color: 'white',
+                        textShadow: '0px 1px 2px black'
+                    }
+                },
+                startAngle: 0,
+                endAngle: 360,
+                center: ['48%', '50%']
+            }
+        },
+        series: [{
+            type: 'pie',
+            name: 'Beneficiaries',
+            innerSize: '60%',
+            data: [
+                ['Cash',  cash_a],
+                [ 'Kind', kind_a],
+                [ 'Others', others_a],
+              
+				
+                //{
+//                    name: 'Proprietary or Undetectable',
+//                    y: 0.2,
+//                    dataLabels: {
+//                        enabled: false
+//                    }
+//                }
+            ]
+        }]
+    });
+});
+	
+// end beneficary graph
+
+	// start aadhar payment bridge graph
+	$(function () {
+		var aadhar_a,nonaadhar_a,Adharbased,total_fund_transfer,nonadhar;
+
+		Adharbased = "<?php echo $frontdata['aadhar_based_fund']; ?>";
+		total_fund_transfer = "<?php echo $frontdata['total_fund_transfer']; ?>"; 
+		nonadhar = parseInt(total_fund_transfer) - parseInt(Adharbased);
+		aadhar_a = parseInt(Adharbased);
+		nonaadhar_a = parseInt(nonadhar);
+	
+    $('.aadhar-payment-bridge-graph').highcharts({
+        chart: {
+            plotBackgroundColor: null,
+            plotBorderWidth: 0,
+            plotShadow: false
+        },
+       /* title: {
+            text: 'Browser<br>shares<br>2015',
+            align: 'center',
+            verticalAlign: 'middle',
+            y: 60
+        },*/
+        
+		
+	 tooltip: { //enabled: false,
+	   headerFormat: '<b>{point.key}</b><br>',
+            pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+        },
+		
+		
+		
+        plotOptions: {
+						
+            pie: {
+                dataLabels: {
+                    enabled: true,
+					formatter: function() {
+						 if (this.y != 0) {
+          return Math.round(this.percentage*100)/100 + ' %';
+        } else {
+          return null;
+        }
+                       
+                    },
+                    distance: -20,
+                    style: {
+                        fontWeight: 'bold',
+                        color: 'black',
+						
+                        textShadow: '0px 1px 2px black'
+                    }
+                },
+                startAngle: 0,
+                endAngle: 360,
+                 center: ['48%', '50%']
+            }
+        },
+        series: [{
+            type: 'pie',
+            name: 'Payment',
+            innerSize: '40%',
+            data: [
+                ['Aadhaar',  aadhar_a],
+                [ 'Non Aadhaar', nonaadhar_a],
+               
+              
+				
+                //{
+//                    name: 'Proprietary or Undetectable',
+//                    y: 0.2,
+//                    dataLabels: {
+//                        enabled: false
+//                    }
+//                }
+            ]
+        }]
+    });
+});
+	
+// end aadhar payment bridge graph
+		
+</script>
+
+
+<script nonce="<?php echo $user->nonce_str; ?>">
+
+
+		$(function () {     
+        var mgnregs, nsap, pahal, scholarship, others;
+
+        mgnregs = "<?php echo $home_page_chart_data[0]['mgnregs_data']; ?>";
+        nsap = "<?php echo $home_page_chart_data[0]['nsap_data']; ?>";
+        pahal = "<?php echo $home_page_chart_data[0]['pahal_data']; ?>";
+        scholarship = "<?php echo $home_page_chart_data[0]['scholarship_data']; ?>";
+        others = "<?php echo $home_page_chart_data[0]['others_data']; ?>";
+
+		mgnregs = parseInt(mgnregs);
+		nsap = parseInt(nsap);
+		pahal = parseInt(pahal);
+		scholarship = parseInt(scholarship);
+		others = parseInt(others);
+        
+    $('#aadhaar-bridge-container').highchartscheme({
+        chart: {
+			//height: 330,
+            type: 'column',
+            options3d: {
+                enabled: true,
+                alpha: 0,
+                beta:0,
+				viewDistance: 25,
+                depth:68
+            }
+        },
+
+        title: {
+			//text: false
+            text: 'Total No. of Beneficiaries'
+        },
+
+        xAxis: {
+            // categories: ['Others', 'Scholarship Schemes', 'NSAP (IGNOAPS, IGNWPS & IGNDPS)', 'MGNREGS', 'PAHAL(DBTL)*'],
+			categories: ['PAHAL(DBTL)*', 'MGNREGS', 'NSAP (IGNOAPS, IGNWPS & IGNDPS)', 'Scholarship Schemes', 'Others'],
+            title: {
+               // text: '<span class="disclaimer">Cr+ is representing carore</span>'
+            },
+			
+        },
+
+        yAxis: {
+            allowDecimals: true,
+			endOnTick: false,
+			//tickInterval: 1000000000,
+			//numericSymbols: null, //otherwise by default ['k', 'M', 'G', 'T', 'P', 'E'],
+            min: 0,
+            title: {
+                text: ''
+            }
+        },
+        tooltip: {
+			enabled: false,
+            headerFormat: '<b>{point.key}</b><br>',
+            //pointFormat: '<span style="color:{series.color}">\u25CF</span> {series.name}: ({point.percentage:.2f}%)'
+            pointFormat: '<span style="color:{series.color}">\u25CF</span> {series.name}: {point.y} / {point.stackTotal}'
+        },
+        plotOptions: {
+            column: {
+                stacking: 'normal',
+                depth: 5,
+				//backgroundColor: 'blue'
+            },
+            series: {
+                dataLabels: {
+                    enabled: true,
+					allowOverlap: true,
+					verticalAlign: 'middle',
+					align: 'center',
+					// rotation: -45,
+					
+					 
+                    formatter: function() {
+						 if (this.y != 0) {
+                              if(this.y > 9999999){
+                                    var total;
+                                    total = this.y/10000000;
+                                    return  total.toFixed(2)+ 'Cr+';
+                              }else if(this.y > 99999){
+								  var total;
+                                    total = this.y/100000;
+                                    return  total.toFixed(2)+ 'L+';
+							  }else if(this.y > 999){
+								  var total;
+                                    total = this.y/1000;
+                                    return  total.toFixed(2)+ 'K+';
+							  }  else{
+                                    return this.y;
+                              }
+                          } else {
+                              return null;
+                          } 
+                    },
+                    distance: -30,
+                    color:'black'
+                }
+            }
+        },
+        series: [{
+			showInLegend: false,
+            name: 'Total Beneficiary',
+            data: [pahal, mgnregs, nsap, scholarship, others]
+			// data: [others, scholarship, nsap, mgnregs, pahal]
+        }]
+    });
+});
+</script> 
+
+<!-- Start Line Chart + Bar Chart -->
+<script nonce="<?php echo $user->nonce_str; ?>">
+$(document).ready(function(){
+	//heighchart
+	$(function () {
+	Highcharts.chart('linechartwithbarchart', {
+    chart: {
+		type: 'column',
+        zoomType: 'xy',
+		options3d: {
+                enabled: true,
+                alpha: 0,
+                beta: 0,
+                viewDistance: 25,
+                depth:68
+            }
+    },
+    title: {
+        text: 'Year wise DBT Progress'
+    },
+    subtitle: {
+        text: ''
+    },
+    xAxis: [{
+		categories: [<?php echo "'".implode("','",$fyyear)."'"; ?>],
+        crosshair: true
+    }],
+    yAxis: [{ // Primary yAxis
+        labels: {
+            //format: '{value}',
+            style: {
+                // color: Highcharts.getOptions().colors[1]
+				color: '#FFA500'
+            }
+        },
+        title: {
+            text: 'No of Schemes',
+            style: {
+                // color: Highcharts.getOptions().colors[1]
+				color: '#FFA500'
+            }
+        }
+    }, { // Secondary yAxis
+        title: {
+            text: 'Benefit Transferred (in cr)',
+            style: {
+                color: Highcharts.getOptions().colors[0]
+            }
+        },
+        labels: {
+            //format: '{value}',
+            style: {
+                color: Highcharts.getOptions().colors[0]
+            }
+        },
+        opposite: true
+    }],
+    tooltip: {
+        shared: true
+    },
+    legend: {
+        layout: 'vertical',
+        align: 'left',
+        x: 80,
+        verticalAlign: 'top',
+        y: 40,
+        floating: true,
+        backgroundColor: (Highcharts.theme && Highcharts.theme.legendBackgroundColor) || '#FFFFFF'
+    },
+	
+	plotOptions: {
+		column: {
+			stacking: 'normal',
+			depth: 5
+		}
+	},
+	
+	
+	
+    series: [{
+		dataLabels: {
+			enabled: true,
+			allowOverlap: true,
+			color: '#000000',
+			verticalAlign: 'middle',
+			align: 'center',
+			rotation: -45,
+			formatter: function() {
+					if (this.y != 0) {
+						return  this.y+ ' cr+';
+					} else {
+						return '';
+					}
+				}
+		},
+        name: 'Other Funds Transferred (in cr)',
+		color: '#82BBFF',
+        type: 'column',
+        yAxis: 1,
+        data: [<?php echo implode(",",$otherfunds); ?>],
+        tooltip: {
+            valueSuffix: ' cr+'
+        }
+		},{
+			dataLabels: {
+				enabled: true,
+				allowOverlap: true,
+				color: '#000000',
+				verticalAlign: 'middle',
+				align: 'center',
+				rotation: -45,
+				formatter: function() {
+					return  this.y+ ' cr+';
+				}
+			},
+			name: 'Benefit Transferred (in cr)',
+			color: '#2ACDBC',
+			type: 'column',
+			yAxis: 1,
+			data: [<?php echo implode(",",$fyfundtransfer); ?>],
+			tooltip: {
+				valueSuffix: ' cr+'
+			}
+		}, {
+			dataLabels: {
+				enabled: true,
+				allowOverlap: true,
+				color: '#850707',
+				verticalAlign: 'middle',
+				align: 'center',
+				rotation: 0
+			},
+			name: 'No of Schemes',
+			color: '#FFA500',
+			type: 'spline',
+			data: [<?php echo implode(",",$noofscheme); ?>],
+			tooltip: {
+				valueSuffix: ''
+			}
+    }]
+});
+
+});	
+
+});
+</script>
+<!-- End Line Chart + Bar Chart -->
+
+
+	<!-- Below code is use to print the chart for the type beneficiaries -->	
+
+<!-- Below code is use to print the chart for the type beneficiaries end here -->
+
+	</head>
+
+<!--Start carousel-->
+<div class="container-fluid">
+
+<div id="myCarousel" class="carousel slide" data-ride="carousel">
+	<?php
+		$cmidata = $this->cmidata;
+		$Count = $this->counttotalcmireports;
+    ?>
+    <!-- Indicators -->
+    <ol class="carousel-indicators">
+		<?php for ($i = 0; $i < $Count; $i++) { ?>
+			<li data-target="#myCarousel" data-slide-to="<?php echo $i;?>"  <?php if ($i == 0) {echo 'class="active"';}?>></li>
+		<?php } ?>
+    </ol>
+    <!-- Wrapper for slides -->
+    <div class="carousel-inner" role="listbox">
+		<?php
+			$i=1;
+			foreach ($cmidata as $key => $val) { 
+		?>
+			<div class="item <?php if ($i == 1) {echo 'active';}?>">
+				<a href="#"><center><img src="<?php echo $this->baseUrl($this->escape($val['filepath'])); ?>" class="img-responsive" id="bannerimage<?php echo $i;?>" alt="<?php echo $this->escape($val['title']);?>"></center></a>
+			</div>			
+		<?php ++$i; } ?>
+    </div>
+    <!-- Left and right controls -->
+    <a class="left carousel-control" href="#myCarousel" role="button" data-slide="prev">
+      <span class="glyphicon glyphicon-chevron-left" aria-hidden="true"></span>
+      <span class="sr-only">Previous</span>
+    </a>
+    <a class="right carousel-control" href="#myCarousel" role="button" data-slide="next">
+      <span class="glyphicon glyphicon-chevron-right" aria-hidden="true"></span>
+      <span class="sr-only">Next</span>
+    </a>
+</div>
+
+</div>
+
+<!--End carousel-->
+
+<!--Start Main Contant box-->
+        <section class="container-fluid mainContant" id="mainContant">
+        
+        <div class="fund-cumulative margin_bottom20">
+    <?php echo total_funds_transfer; ?>	(<?php echo cumulative; ?>) <span> <img src="images/rupee-symbol.png" alt="rupee icon" /> <!--1,30,862.14 Cr --><?php echo no_to_words_cr($this->saving_data);?></span><!--<a href="<?php //echo $this->baseUrl('Progressreport'); 
+	echo $this->baseUrl('page/frontcontentview/?id=ODQ=') ?>"><?php echo more_details; ?></a>-->
+	
+	<a href="<?php echo $this->baseUrl('page/frontcontentview/?id=ODQ=') ?>"><?php echo more_details; ?></a>
+    </div>
+        
+        
+		<div id="funds">
+         <div class="row  margin_bottom20">
+        <!--Start fund transfer,BENEFICIARIES ,saving, scheme-->
+        <div class="clearfix col-sm-5">
+        	<div class="fundTransfer blue">
+        	<?php 
+        		$userid = new Zend_Session_Namespace('userid');
+        		$role = new Zend_Session_Namespace('role');
+        		if(!empty($userid) && !empty($role)){
+        			if($role->role == "1"){
+    					$url = "schemeview/totalfundtransfer";
+    					$ben = "report/beneficiaries";
+		    		}else if($role->role == "2"){
+		    			$url = "/schemeview/totalfundtransfer";
+		    			$ben = "report/beneficiaries";
+		    		}else if($role->role == "3"){
+		    			$url = "/schemeview/totalfundtransfer";
+		    			$ben = "report/beneficiaries";
+		    		}else if($role->role == "4"){
+		    			$url = "/schemeview/totalfundtransfer";
+		    			$ben = "report/beneficiaries";
+		    		}else if($role->role == "5"){
+		    			$url = "/schemeview/totalfundtransfer";
+		    			$ben = "report/beneficiaries";
+		    		}else if($role->role == "6"){
+		    			$url = "/schemeview/totalfundtransfer";
+		    			$ben = "report/beneficiaries";
+		    		}
+		            else if($role->role == ""){
+		                $url = "/auth/login?login_as=".base64_encode('schemereportview');
+		                $ben = "/auth/login?ben_as=".base64_encode('beneficiaries');
+		            }	
+        		}
+
+        	 ?>
+<?php
+	$financialyearfrom = date('Y');
+	$financialyearto = date('y') + 1;
+	$currentmonth = date('m');
+	if ($currentmonth <= 3) {$financialyearfrom = date('Y') - 1;$financialyearto = date('y');}
+	$financialyear = $financialyearfrom.'-'.$financialyearto;
+?>
+        <h2><?php echo total_funds_transfer; ?><small>(<?php echo fy; ?> <?php echo $financialyear; ?>)</small></h2><h3><img src="./images/rupee-symbol.png" alt="Rupee Icon" class="rupee-icon" /> <?php echo no_to_words($frontdata['total_fund_transfer']); ?></h3><span><img src="images/rupee-batch.png" alt="Total Funds Transfer"></span><a href="<?php echo $this->baseUrl($url); ?>"><?php echo more_details; ?></a></div>
+       
+        <div class="fundTransfer pink">
+        <h2><?php echo TOTAL_NUMBER_OF_TRANSACTIONS; ?><small>(<?php echo fy; ?> <?php echo $financialyear; ?>)</small></h2><h3><?php echo no_to_words($frontdata['total_benificary']); ?></h3>
+        <span><img src="images/user-icon.png" alt="TOTAL NO. OF TRANSACTIONS"></span>
+        <a href="<?php echo $this->baseUrl($ben); ?>"><?php echo more_details; ?></a></div>
+        
+        <div class="fundTransfer green">
+        <div class="row">
+        <div class="col-sm-6 col-xs-12 noofscheme">
+        <h2><?php echo schemes; ?> </h2><h3><?php echo currencyData($this->current_financial_scheme_data); //echo amountFormat($frontdata['number_of_schemes']); ?></h3>
+         <span><img src="images/paper.png" alt="Schemes"></span>
+         <a href="<?php echo $this->baseUrl('scheme/schemelist'); ?>"><?php echo more_details; ?></a>
+        </div>
+       
+        <div class="col-sm-6 col-xs-12 department-box">
+      <!--  <span class="scheme-right-border"></span>-->
+        <h2><?php echo departments; ?><a class="hide" href="<?php echo $this->baseUrl('scheme/schemelist'); ?>"><?php echo more_details; ?></a></h2><h3><?php //echo amountFormat($frontdata['number_of_departments']); ?>
+                  <?php echo currencyData($this->current_financial_ministry_data); ?></h3>
+                   <span><img src="images/ministry.png" alt="Ministries"></span>
+         <!--<p></p>-->
+          <a href="<?php echo $this->baseUrl('scheme/schemelist'); ?>"><?php echo more_details; ?></a>
+         </div>
+        
+        </div>
+       
+        </div>
+        
+        <div class="fundTransfer yellow"><h2><?php echo savings; ?></h2><h3><img src="./images/rupee-symbol.png" alt="Rupee Icon" class="rupee-icon" /><!--36,144--> 49,560 Cr <a href="<?php //echo $this->baseUrl('progressreport/report');
+   echo $this->baseUrl('page/frontcontentview/?id=ODM=');
+		?>"><span><img src="images/globe.png" alt="SAVINGS"></span><?php echo more_details; ?></a>
+		<?php //echo no_to_words($frontdata['total_saving']); ?></h3></div>
+        
+        </div>
+  <!--End fund transfer,BENEFICIARIES ,saving, scheme -->
+  
+<div class="col-sm-7">
+<div class="mapouter">
+        	<div class="india-map">
+                <div class="map-img">
+				
+				<div class="scheme_wise_fund" id="scheme_wise_fund">
+                        <h4><?php echo total_funds_transfer; ?> (<?php echo fy; ?> <?php echo $current_fynw; ?>):</h4>
+			<?php 
+			$dbtamount = $this->totaldbtamount;
+			//echo "<pre>";
+			//print_r($dbtamount);
+			$temp='';
+			foreach($dbtamount as $key => $val){
+                            if($val[0]['total_transfer']!=''){
+								$temp=1;
+                                echo "<p class='small'><span class='schTitle'>".$val[0]['scheme_name'] ." :</span> ". no_to_words($val[0]['total_transfer'])."</p>";  
+                            }
+			}
+			if($temp==''){
+						echo "<p class='small'><span class='schTitle'>MGNREGS :</span>0</p>";
+						echo '<p class="small"><span class="schTitle">PAHAL :</span> 0</p>'; 								
+					}
+                        ?>
+                    </div>	
+				
+				
+             <div class="statdatapopup" id="statdatapopup">
+                            <div class="arrow"></div>
+                                <h3 id="state_name"></h3>
+                                <p id="total_fund"><strong></strong></p>
+                                <p id="total_beneficiary"></p>
+                            </div>
+			
+								
+							
+                	<img src="./images/map-home.png" usemap="#Map" alt="India Map" />
+                    <map name="Map">
+                                <area shape="rect" coords="134,46,222,58" href="<?php echo $this->BaseUrl('drilldown/jammukashmir'); ?>" id="1" alt="kashmir" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['1']."',amount='".no_to_words($state_wise_report['1']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['1']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="143,103,233,115" href="<?php echo $this->BaseUrl('drilldown/himachalpradesh'); ?>" id="2" alt="himanchal" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['2']."',amount='".no_to_words($state_wise_report['2']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['2']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="136,124,173,138" href="<?php echo $this->BaseUrl('drilldown/punjab'); ?>" id="3" alt="punjab" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['3']."',amount='".no_to_words($state_wise_report['3']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['3']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="195,139,259,149" href="<?php echo $this->BaseUrl('drilldown/uttrakhand'); ?>" id="5" alt="uttrakhand" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['5']."',amount='".no_to_words($state_wise_report['5']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['5']['total_beneficiary'])."'";; ?>);">
+
+                              <area shape="rect" coords="148,158,187,171" href="<?php echo $this->BaseUrl('drilldown/haryana'); ?>" id="6" alt="haryana" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['6']."',amount='".no_to_words($state_wise_report['6']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['6']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="172,175,199,187" href="ut?state=7" id="7" alt="newDelhi" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['7']."',amount='".no_to_words($state_wise_report['7']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['7']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="234,205,304,218" href="<?php echo $this->BaseUrl('drilldown/utterpradesh'); ?>" id="9" alt="uttarPradesh" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['9']."',amount='".no_to_words($state_wise_report['9']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['9']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="354,231,383,243" href="<?php echo $this->BaseUrl('drilldown/bihar'); ?>" id="10" alt="bihar" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['10']."',amount='".no_to_words($state_wise_report['10']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['10']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="401,192,433,201" href="<?php echo $this->BaseUrl('drilldown/sikkim'); ?>"  id="11" alt="sikkim" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['11']."',amount='".no_to_words($state_wise_report['11']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['11']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="496,173,593,187" href="<?php echo $this->BaseUrl('drilldown/arunachalpradesh'); ?>" id="12" alt="arunachalPradesh" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['12']."',amount='".no_to_words($state_wise_report['12']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['12']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="471,216,508,230" href="<?php echo $this->BaseUrl('drilldown/assam'); ?>" id="18" alt="assam" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['18']."',amount='".no_to_words($state_wise_report['18']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['18']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="520,222,569,235" href="<?php echo $this->BaseUrl('drilldown/nagaland'); ?>" id="13" alt="nagaland" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['13']."',amount='".no_to_words($state_wise_report['13']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['13']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="451,235,505,247" href="<?php echo $this->BaseUrl('drilldown/meghalya'); ?>" id="17" alt="meghalaya" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['17']."',amount='".no_to_words($state_wise_report['17']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['17']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="509,251,549,261" href="<?php echo $this->BaseUrl('drilldown/manipur'); ?>" id="14" alt="manipur" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['14']."',amount='".no_to_words($state_wise_report['14']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['14']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="469,264,506,274" href="<?php echo $this->BaseUrl('drilldown/tripura'); ?>" id="16" alt="tripura" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['16']."',amount='".no_to_words($state_wise_report['16']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['16']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="487,281,535,294" href="<?php echo $this->BaseUrl('drilldown/mizoram'); ?>" id="15" alt="mizoram" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['15']."',amount='".no_to_words($state_wise_report['15']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['15']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="379,270,440,284" href="<?php echo $this->BaseUrl('drilldown/westbengal'); ?>" id="19" alt="westBengal" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['19']."',amount='".no_to_words($state_wise_report['19']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['19']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="325,270,376,285" href="<?php echo $this->BaseUrl('drilldown/jharkhand'); ?>" id="20" alt="jharkhand" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['20']."',amount='".no_to_words($state_wise_report['20']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['20']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="90,208,141,222" href="<?php echo $this->BaseUrl('drilldown/rajasthan'); ?>" id="8" alt="rajsthant" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['8']."',amount='".no_to_words($state_wise_report['8']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['8']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="65,286,106,298" href="<?php echo $this->BaseUrl('drilldown/gujarat'); ?>" id="24" alt="gujarat" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['24']."',amount='".no_to_words($state_wise_report['24']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['24']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="164,284,250,301" href="<?php echo $this->BaseUrl('drilldown/madhyapradesh'); ?>" id="23" alt="madhyaPradesh" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['23']."',amount='".no_to_words($state_wise_report['23']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['23']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="253,315,319,329" href="<?php echo $this->BaseUrl('drilldown/chhattisgarh'); ?>" id="22" alt="chhattisgarh" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['22']."',amount='".no_to_words($state_wise_report['22']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['22']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="312,335,357,350" href="<?php echo $this->BaseUrl('drilldown/odisha'); ?>" id="21" alt="odisha" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['21']."',amount='".no_to_words($state_wise_report['21']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['21']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="116,357,180,370" href="<?php echo $this->BaseUrl('drilldown/maharashtra'); ?>" id="27" alt="maharashtra" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['27']."',amount='".no_to_words($state_wise_report['27']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['27']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="201,391,255,406" href="<?php echo $this->BaseUrl('drilldown/telangana'); ?>" id="36" alt="telengana" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['36']."',amount='".no_to_words($state_wise_report['36']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['36']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="113,439,132,450" href="<?php echo $this->BaseUrl('drilldown/goa'); ?>" id="30" alt="goa" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['30']."',amount='".no_to_words($state_wise_report['30']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['30']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="175,435,257,447" href="<?php echo $this->BaseUrl('drilldown/andhrapradesh'); ?>" id="28" alt="andhraPradesh" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['28']."',amount='".no_to_words($state_wise_report['28']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['28']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="129,458,176,467" href="<?php echo $this->BaseUrl('drilldown/karnataka'); ?>" id="29" alt="karnataka" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['29']."',amount='".no_to_words($state_wise_report['29']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['29']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="182,533,238,543" href="<?php echo $this->BaseUrl('drilldown/tamilnadu'); ?>" id="33" alt="tamilnadu" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['33']."',amount='".no_to_words($state_wise_report['33']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['33']['total_beneficiary'])."'"; ?>);">
+
+                              <area shape="rect" coords="153,550,187,560" href="<?php echo $this->BaseUrl('drilldown/kerala'); ?>" id="32" alt="keral" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['32']."',amount='".no_to_words($state_wise_report['32']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['32']['total_beneficiary'])."'"; ?>);">
+                              
+                              
+                <area shape="rect" coords="174,119,231,133" href="ut?state=4" id="4" alt="chandigirth" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['4']."',amount='".no_to_words($state_wise_report['4']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['4']['total_beneficiary'])."'"; ?>);">
+
+                <area shape="rect" coords="49,339,158,355" href="ut?state=26" id="26" alt="dadra-and-nagar-haveli" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['26']."',amount='".no_to_words($state_wise_report['26']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['26']['total_beneficiary'])."'"; ?>);">
+
+                <area shape="rect" coords="241,533,294,546" href="ut?state=34" id="34" alt="puducherry" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['34']."',amount='".no_to_words($state_wise_report['34']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['34']['total_beneficiary'])."'"; ?>);">
+
+                <area shape="rect" coords="80,538,147,549" href="ut?state=31" id="31" alt="lakshadweep" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['31']."',amount='".no_to_words($state_wise_report['31']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['31']['total_beneficiary'])."'"; ?>);">
+
+                <area shape="rect" coords="453,499,556,511" href="ut?state=35" id="35" alt="andaman-and-nicobar" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['35']."',amount='".no_to_words($state_wise_report['35']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['35']['total_beneficiary'])."'"; ?>);">
+
+				<area shape="rect" coords="36,326,120,338" href="ut?state=25" id="25" alt="daman-and-diu" onmouseover="return calc_amount(this.id,<?php echo "state='".$state_list['25']."',amount='".no_to_words($state_wise_report['25']['total_transfer'])."',total_beneficiary='".no_to_words($state_wise_report['25']['total_beneficiary'])."'"; ?>);">
+
+        </map>
+							
+                 </div>
+				
+              
+            </div>
+              <p class="india"><span class="shown-figures left"><?php echo SHOWN_FIGURES; ?></span><span class="right"><?php echo india; ?> (<?php echo NOT_TO_SCALE; ?>)</span></p>
+        </div>
+		</div>
+        
+        </div>
+  <!--End Total funds transfer-->
+  
+  
+<!--Start graph and department -->
+	<div class="row">
+
+	<div class="col-sm-12 col-md-6">
+		<div id="linechartwithbarchart" class="dashboard_box">
+			Line Chart With Bar Chart
+		</div>
+	</div>
+	<!---
+<div class="col-sm-12 col-md-6">
+    <div class="aadhar-payment-bridge">
+        <div class="col-sm-6  col-xs-6">
+            <h2><?php echo adhar_payment_bridge; ?><span><img src="./images/rupee-symbol-blue.png" alt="Rupee Icon" class="rupee-icon" /> <?php echo no_to_words($frontdata['aadhar_based_fund']); ?></span></h2>
+            <h2 class="margin_top50"><?php echo nonadhar_payment_bridge; ?><span><img src="./images/rupee-symbol-blue.png" alt="Rupee Icon" class="rupee-icon" /> <?php echo no_to_words($frontdata['non_aadhar_based_fund']); ?></span></h2>
+             
+            </div>
+       
+        <div class="col-sm-6 col-xs-6">
+        	 <div class="aadhar-payment-bridge-graph">
+       		</div>
+            <ul class="list-unstyled list-inline addar-indicater">
+        <li><small class="incash"></small> <?php echo 'Aadhaar' ?></li>
+        <li><small class="inkind"></small> <?php echo 'Other Modes'; ?></li>
+      
+    </ul>
+        </div>
+        
+    </div>
+</div> --->
+<div class="col-sm-12 col-md-6">
+<!--<img src="./images/beneficiary_graph_new.png" class="img-responsive" />-->
+<div id='aadhaar-bridge-container' class="dashboard_box">
+           
+            </div>
+    <!--<div class="row">
+        <div class="col-sm-7 col-xs-12">
+            <div class="beneficiaries-bridge">
+                <div class="row">
+                    <div class="col-sm-4 col-xs-7">
+                        <div class="">
+                            <h2><?php //echo beneficareies; ?></h2>
+                            <ul class="list-unstyled cash_container visible">
+                                <li><p><small> <?php //echo in_cash; ?></small><span></span></p></li>
+                                <li><p><small> <?php //echo in_kind; ?></small><span></span></p></li>
+                                <li><p><small> <?php //echo others; ?></small><span></span></p></li>
+                            </ul>
+                            <ul class="list-unstyled">
+        <li><small class="incash"></small> <?php //echo in_cash; ?></li>
+        <li><small class="inkind"></small> <?php //echo in_kind; ?></li>
+        <li><small class="inothers"></small> <?php //echo others; ?></li>
+    </ul>
+    
+    
+                        </div>
+                    </div>
+                    <div class="col-sm-8 col-xs-5 pull-right">
+                        <div class="beneficary-graph pull-right">
+                            <!--<img src="images/beneficiary_graph.png" class="img-responsive	" alt="" />
+                         
+                        </div>
+                    </div>
+                </div>
+                   <div class="border-right"></div>
+            </div>
+        </div>
+        
+            <div class="col-sm-5 col-xs-12">
+       
+       <div class="department-box">
+        <h2><?php //echo departments; ?><a class="hide" href="<?php //echo $this->baseUrl('scheme/schemelist'); ?>"><?php //echo more_details; ?></a></h2><h3><?php //echo amountFormat($frontdata['number_of_departments']); ?>
+                  <?php //echo currencyData($this->current_financial_ministry_data); ?></h3>
+         <p></p>
+         </div>
+       
+       
+       
+       
+        </div>
+    </div>  -->  
+    
+</div>
+</div>
+<!--End graph and department -->
+         
+
+   </div>
+   
+<div>
+        <ul class="list-inline thumb-box">
+        	<li><a href="https://data.gov.in/" target="_blank" title="Open Data"><img src="images/data.png" alt="Open Data logo" class="img-responsive" /></a></li>
+            <li><a href="http://www.digitalindia.gov.in/" target="_blank" title="Digital India"><img src="images/DigitalLogo.png" alt="Digital India logo" class="img-responsive" /></a></li>
+            <li><a href="https://uidai.gov.in/" target="_blank" title="Aadhaar"><img src="images/logo_en-GB.gif" alt="Aadhaar logo" class="img-responsive" /></a></li>
+            <li><a href="http://www.nrega.nic.in/" target="_blank" title="MG NREGA"><img src="images/mgnerga.png" alt="MG NREGA logo" class="img-responsive" /></a></li>
+            <li><a href="http://www.scholarships.gov.in/" target="_blank" title="NSP"><img src="images/nsp.png" alt="NSP logo" class="img-responsive" /></a></li>
+            <li><a href="http://petroleum.nic.in/dbt/" target="_blank" title="Pahal"><img src="images/pahal.png" alt="Pahal logo" class="img-responsive" /></a></li>
+            <li><a href="http://www.pmjdy.gov.in/" target="_blank" title="Jan Dhan"><img src="images/pmjdy.png" alt="Jan Dhan logo" class="img-responsive" /></a></li>
+        </ul>
+    </div>
+   
+    </section>

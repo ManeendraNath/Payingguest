@@ -1,0 +1,73 @@
+<?php
+$customerhome_details = $this-> customerhome_details;
+//print_r($customerhome_details);
+//die;
+?> 
+<?php
+$postUrl = $this->url(array(
+    'controller' => 'Customer',
+    'action' => 'viewdetails'
+        ));
+?>
+<form role="form" method="post" action="<?php echo $postUrl; ?>" name="add-contactus" id="add-contactus">
+<div class="cntnt">
+    <ol class="breadcrumb  margin_top100">
+	</ol>
+ <h2 class="btn btn-block btn-success col-sm-12 "> PG Home Details </h2>
+ <div class="col-10">
+                <nav class="site-navigation text-right  " role="navigation">
+                  <div class="container">
+                    
+                   
+                    <ul class="site-menu js-clone-nav d-none d-lg-block">
+                   <!-- <h3><a href="/payingguest/">Logout</a> </h3> -->
+					<input type="button"  value="Logout"onclick="window.location.href='/payingguest/'" />	
+						</ul>
+                  </div>
+                </nav>
+              </div>
+	 <table  border="1" align="center">
+	 
+        <tr>			
+           <th scope="row">OwnerName</th>
+            <th scope="row">Name</th>
+             <th scope="row">Location</th>
+           
+			<th scope="row">Address</th>
+        </tr>
+		<?php
+		
+        $i = 1;
+	
+ foreach ($customerhome_details as $entry):
+ 
+ { ?>
+  <tr>
+   <td><?php echo $entry['ownername']; ?></td>
+    <td><?php echo $entry['name']; ?></td>
+    
+     <td><?php echo $entry['location']; ?></td>
+    
+	<td><?php echo $entry['address'];?></td>
+	</tr>
+  <?php
+                $i++;
+            }
+        
+        ?>  
+		
+<?php endforeach ?>
+</table>
+<ol class="breadcrumb  margin_top10">
+	</ol>
+<div class="col-md-12 col-sm-12 text-center">
+            <div class="form-group">
+<a href="fulldetails" class="btn btn-info" role="button">View Complete PG Details</a>
+   </div>
+			
+        </div>
+        
+
+   </div>
+		</form>
+		

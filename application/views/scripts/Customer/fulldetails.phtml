@@ -1,0 +1,57 @@
+<?php
+$customerhome_details = $this-> customerhome_details;
+//print_r($customerhome_details);
+//die;
+?> 
+
+<?php
+$postUrl = $this->url(array(
+    'controller' => 'Customer',
+    'action' => 'fulldetails'
+        ));
+?>
+
+                        
+						  
+<form role="form" method="post" action="<?php echo $postUrl; ?>" name="add-contactus" id="add-contactus">
+<div class="cntnt">
+    <ol class="breadcrumb  margin_top100">
+	</ol>
+ <h2 class="btn btn-block btn-info col-sm-12 "> PG Home Details</h2>
+ <div class="col-10">
+                <nav class="site-navigation text-right  " role="navigation">
+                  <div class="container">
+                    
+                   
+                    <ul class="site-menu js-clone-nav d-none d-lg-block">
+                   <!-- <h3><a href="/payingguest/">Logout</a> </h3> -->
+					<input type="button"  value="Logout"onclick="window.location.href='/payingguest/'" />	
+						</ul>
+                  </div>
+                </nav>
+              </div>
+   <ol class="breadcrumb  margin_top10">
+	</ol>
+			                      <h3><center><div class="dropdown" >
+								   <button class="dropbtn">Search</button>
+								  <div  class="dropdown-content" >
+								  
+
+                        
+						
+                         <!--<a href="/Payingguest/Customer/divya-pghomedetail">Delhi</a>-->
+						  <a href="/Payingguest/Customer/check-pgcustomerdetails">Delhi</a>
+                          <a href="/Payingguest/Customer/check-pgcustomerdetails15">Goa</a>
+                          <a href="/Payingguest/Customer/check-pgcustomerdetails17">Pune</a>
+						  <a href="/Payingguest/Customer/check-pgcustomerdetails19">Mumbai</a>
+						  <a href="/Payingguest/Customer/check-pgcustomerdetails7">Chennai</a></h3>
+						  
+
+						  </div>
+						  </div>
+	<ol class="breadcrumb  margin_top100">
+	</ol>
+			
+        </div>
+		</form>
+		

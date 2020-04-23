@@ -1,0 +1,132 @@
+	<span style='font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;font-size:14px'>Dear User,
+	<br><br>Please find the scheme data updated on <?php echo $this->data_updated; ?></span><br><br>
+	<table style='font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;border-collapse: collapse;width: 100%;'>
+		<tr>
+			<td width='52%' style='border: 1px solid #ddd;padding: 8px;'><b>Ministry Name</b></td>
+			<td style='border: 1px solid #ddd;padding: 8px;'><?php echo $this->ministry_name; ?></td>
+		</tr>
+		<tr>
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>Scheme Name</b></td><td style='border: 1px solid #ddd;padding: 8px;'><?php echo $this->scheme_name; ?>
+			</td>
+		</tr>
+		<tr>
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>Scheme Code</b></td><td style='border: 1px solid #ddd;padding: 8px;'><?php echo $this->scheme_code; ?>
+			</td>
+		</tr>		
+		<tr>
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>Benefit Type</b></td><td style='border: 1px solid #ddd;padding: 8px;'><?php echo $this->benefit_type_label; ?>
+			</td>
+		</tr>
+		<tr>
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>Month, Financial Year</b></td><td style='border: 1px solid #ddd;padding: 8px;'><?php echo $this->month_name.', '.$this->fy_yr; ?>
+			</td>
+		</tr>
+		<tr>
+		<?php if($this->overall_scheme_budget){ ?>
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>Overall Scheme Budget(in ₹)</b></td><td style='border: 1px solid #ddd;padding: 8px;'><?php echo $this->overall_scheme_budget; ?>
+			</td>
+		<?php }else{ ?>
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>Overall Scheme Budget(in ₹)</b></td><td style='border: 1px solid #ddd;padding: 8px;background-color:#DD938B'>Not Reported</td>
+		<?php } ?>			
+		</tr>
+		<tr>
+		<?php if($this->applicable_component_fund_allocation){ ?>		
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>DBT Applicable Component Fund Allocation(in ₹)</b></td><td style='border: 1px solid #ddd;padding: 8px;'><?php echo $this->applicable_component_fund_allocation; ?>
+			</td>
+		<?php }else{ ?>	
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>DBT Applicable Component Fund Allocation(in ₹)</b></td><td style='border: 1px solid #ddd;padding: 8px;background-color:#DD938B'>Not Reported</td>
+		<?php } ?>		
+		</tr>	
+
+		<tr>
+		<?php 
+		$date = date('d-m-Y', strtotime($this->saving_report_date));
+		if($this->saving){ 
+		
+		?>		
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>Total Savings (For Current FY till <?php echo $date; ?>) (in ₹)</b></td><td style='border: 1px solid #ddd;padding: 8px;'><?php echo $this->saving; ?>
+			</td>
+		<?php }else{ ?>	
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>Total Savings (For Current FY) (in ₹)</b></td><td style='border: 1px solid #ddd;padding: 8px;background-color:#DD938B'>Not Reported</td>
+		<?php } ?>		
+		</tr>		
+	</table><br><span style="font-family:Trebuchet MS, Arial, Helvetica, sans-serif;font-size:14px">Data updated manually.</span><br>
+	<br>
+	<table style='font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;border-collapse: collapse;width: 100%;'>
+		<tr>
+			<th colspan=2 style='border: 1px solid #ddd;padding: 8px;padding-top: 12px;padding-bottom: 12px;color: white;background-color:#999999'>Monthly Progress Report
+			</th>
+			<th style='border: 1px solid #ddd;color: white;background-color:#999999'>Updated(Yes/No)
+			</th>			
+		</tr>
+		<tr>
+			<td width='52%' style='text-align:center;border: 1px solid #ddd;padding: 8px;background-color:#D3D3D3'><b>Field</b></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;background-color:#D3D3D3'><b>Value</b></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;background-color:#D3D3D3'></td>
+		</tr>		
+		<tr>
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>Total No. of Beneficiaries</b></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->totalnoofbeneficiaries; ?></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->if_changed_beneficiaries; ?></td>
+		</tr>
+		<tr>
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>No. of Aadhaar Authenticated and Seeded Beneficiaries</b></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->totalnoofbeneficiarieswithaadhaar; ?></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->if_changed_beneficiarieswith_aadhaar; ?></td>
+		</tr>
+		<tr>
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>Beneficiaries seeded with Aadhaar %</b></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->aadhaar_seeded_beneficiaries_percent; ?>%</td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->if_changed_aadhaar_seeded_beneficiaries_percent; ?></td>
+		</tr>		
+		<?php if(in_array(1,$this->benefit_type) || (in_array(1,$this->benefit_type) && in_array(2,$this->benefit_type))){ ?>
+		<tr>
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>Total Fund Transfer(in ₹)</b></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->total_fund_transfer; ?></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->if_changed_fund_transfer; ?></td>
+		</tr>					
+		<tr>
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>Electronic Fund Transfer(in ₹)</b></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->electronic_fund; ?></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->if_changed_electronic_fund; ?></td>
+		</tr>
+		<?php if($this->electronic_fund_percent < 95){ ?>
+		<tr>
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>Electronic Fund Transfer %</b></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;background-color:#DD938B'><?php echo $this->electronic_fund_percent; ?>%<span><sup> #</sup></span></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->if_changed_electronic_fund_percent; ?></td>
+		</tr>
+		<?php }else{ ?>
+		<tr>
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>Electronic Fund Transfer %</b></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->electronic_fund_percent; ?>%</td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->if_changed_electronic_fund_percent; ?></td>
+		</tr>
+	<?php } 
+	} 
+	
+	if(in_array(2,$this->benefit_type) || (in_array(1,$this->benefit_type) && in_array(2,$this->benefit_type))){ ?>
+		<tr>
+			<td style='border: 1px solid #ddd;padding: 8px;'><b>Total Expenditure(in ₹)</b></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->total_expenditure; ?></td>
+			<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->if_changed_expenditure; ?></td>
+		</tr>
+	<tr>
+		<td style='border: 1px solid #ddd;padding: 8px;'><b>Total Expenditure incurred through Aadhaar Authentication / Validated Transaction(in ₹)</b></td>
+		<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->total_aadhaar_authenticated_expenditure; ?></td>
+		<td style='text-align:center;border: 1px solid #ddd;padding: 8px;'><?php echo $this->if_changed_authenticated_expenditure; ?></td>
+	</tr>
+	<?php } ?>
+	
+	</table><br>
+	<span style='font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;font-size:14px'><a href= '<?php echo $this->scheme_drilldown_link; ?>' target='_blank' rel="noopener noreferrer">Click Here</a> to view Scheme DrillDown Report on DBT Bharat Portal</span><br>
+	<span style='font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;font-size:14px'><a href= '<?php echo $this->monthwise_progess_link; ?>' target='_blank' rel="noopener noreferrer">Click Here</a> to view Month Wise Progress Report on DBT Bharat Portal</span><br><br>
+	<?php 
+	if(($this->electronic_fund_percent < 95) && (in_array(1,$this->benefit_type) || (in_array(1,$this->benefit_type) && in_array(2,$this->benefit_type)))){
+		echo "# - Electronic Fund is less than 95%";
+	}
+	?>
+	<span style='font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;font-size:14px'><br><br>Thanks and Regards,
+	<br>DBT Mission
+	<br><br><?php echo '[This is a system generated email]'; ?></span>
+	

@@ -1,0 +1,95 @@
+<h2 class="btn btn-block btn-danger col-sm-12"> Edit Owner Profile  </h2>
+<?php
+$admission_gain_data = $this->admission_data;
+//echo "<pre>"; print_r($admission_gain_data); die;
+$postUrl = $this->url(array(
+            'controller' => 'Admin',
+            'action' => 'edit-pgcustomerdetails'
+        )) . "?id=" . $_GET['id'];
+		
+?>
+
+<form role="form" method="post" action="<?php echo $postUrl; ?>" name="edit_pgowner_details" id="edit_pgowner_details">
+             <?php if ($this->form->getMessages()) { ?>
+        <div><ul>
+                <?php
+                $form_errors = $this->form->getMessages();
+				
+                foreach ($form_errors as $field => $arrErrors) {
+                    echo '<li>' . $this->formErrors($arrErrors) . '</li>';
+                }
+                ?>
+            </ul></div>
+			
+	<?php } ?>
+	 <?php
+    if ($this->error_message) {
+        echo "<div class='error-msg'>" . $this->error_message . "</div>";
+    }
+    ?>
+   <div class="site-section site-section-sm">
+      <div class="container">
+        <div class="row">
+         <div class="col-md-12 col-lg-8 mb-5">
+          <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+                  <label class="font-weight-bold" for="fullname"> PG Name</label>
+                 <?php echo $this->form->pg; ?>
+                </div>
+              </div>
+			   <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+                  <label class="font-weight-bold" for="fullname">Name</label>
+                 <?php echo $this->form->name; ?>
+                </div>
+              </div>
+			    <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+								<label class="font-weight-bold" for="password">Gender</label>
+                                <?php echo $this->form->gender; ?>
+                                </div>
+                                </div>
+                 <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+                  <label class="font-weight-bold" for="phone">Contact Number</label>
+                  <?php echo $this->form->contactno; ?>
+                </div>
+              </div>
+			  <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+                  <label class="font-weight-bold" for="address">Address</label>
+                  <?php echo $this->form->address; ?>
+                </div>
+              </div>
+
+				<div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+				<label class="font-weight-bold" for="email">Email</label>
+                                <?php echo $this->form->email; ?>
+                 
+               </div>
+               </div>
+                  
+
+              
+
+             
+				
+				
+								
+             
+			 <div class="col-md-12 col-sm-12 text-center">
+            <div class="form-group">
+			<div align="left">
+                <button type="submit" name="Submit" class="btn btn-default btn-warning text-center" id="sechemSearchButton">Submit</button>
+            </div>
+        </div>   
+		</div>
+                              
+								
+                           
+              	
+            </div>
+                </div>  
+         			
+            </form>

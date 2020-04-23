@@ -1,0 +1,214 @@
+<?php
+   $userid = new Zend_Session_Namespace('userid');
+$unme= $userid->userid;
+$role = new Zend_Session_Namespace('role');
+$userinfodata = $_SESSION['userinfodata'];
+?>
+<?php
+    require_once 'Zend/Session.php';
+?>
+<script type="text/javascript" language="javascript">
+    var j ="" ;
+
+    var count=0;
+    function AddUploader(fileName,displayName,uploadedFileId)
+    {
+         location.reload(true);
+    }
+
+    function clientStateChange()
+    {
+        alert("inside the function");
+        if(xmlHttp.readyState==4)
+        {
+            if(xmlHttp.status==200)
+            {
+                try
+                {
+                    var res = xmlHttp.responseText;
+                    if(res != null && res!= "" && res == "Y")
+                    {	
+
+                    }
+                    else
+                    {
+
+                    }
+                }
+                catch(e)
+                {
+                   alert("unable to connect to server  . . . . . . .");
+                }
+            }
+        }
+    }
+</script>
+	
+<script type="text/javascript" language="javascript">
+    function openPopUp(name, wdt, hgh){
+        var w = wdt;
+        var h =  hgh;
+        var left = (screen.width/2)-(w/2);
+        var top = (screen.height/2)-(h/2);
+        window.open(name,"","height="+h+",width="+w+",directories=no,scrollbars=yes,location=no,menubar=no,resizeable=no,status=no,toolbar=no,left="+left+",top="+top);
+    }
+</script>
+<script type="text/javascript" language="javascript">
+    function openlib(URL){
+            winprops = 'height=500,width=650,top=40,left=10,scrollbars=yes,resizable=yes,menu=no,titlebar=no'
+            window.open(URL,'popupB',winprops);
+    }
+    function openlib1(URL){
+            winprops = 'height=500,width=650,top=40,left=10,scrollbars=yes,resizable=yes,menu=no,titlebar=no'
+            window.open(URL,'popupB1',winprops);
+    }
+</script>
+<script type="text/javascript">
+    $(function() {
+            var ticker = $("#ticker");
+            ticker.children().filter("dt").each(function() {
+                    var dt = $(this),
+                    container = $("<div>");
+                    dt.next().appendTo(container);
+                    dt.prependTo(container);
+                    container.appendTo(ticker);
+            });
+            ticker.css("overflow", "hidden");
+            function animator(currentItem) {
+                    var distance = currentItem.height();
+                    duration = (distance + parseInt(currentItem.css("marginTop"))) / 0.015;
+                    currentItem.animate({ marginTop: -distance }, duration, "linear", function() {
+                            currentItem.appendTo(currentItem.parent()).css("marginTop", 0);
+                            animator(currentItem.parent().children(":first"));
+                    }); 	
+            };
+            animator(ticker.children(":first"));
+            ticker.mouseenter(function() {
+                    ticker.children().stop();
+            });
+            ticker.mouseleave(function() {
+                    animator(ticker.children(":first"));
+            });
+    });
+</script>
+<script type="text/javascript" language="javascript">
+$(document).ready(function(){
+	//change user information on dbt community
+	var name = '<?php echo base64_encode($userinfodata["username"]); ?>';
+	var id = '<?php echo base64_encode($userinfodata["id"]); ?>';
+	var email = '<?php echo base64_encode($userinfodata["email"]); ?>';
+	var fname = '<?php echo base64_encode($userinfodata["firstname"]); ?>';
+	var lname = '<?php echo base64_encode($userinfodata["lastname"]); ?>';
+	if(name && email && id) {
+		var helpdeskurl = '<?php echo SSO_AJAX_PATH; ?>/create_user';
+		// alert(helpdeskurl);
+		var datastring = 'name='+name+'&email='+email+'&lid='+id+'&fname='+fname+'&lname='+lname;
+		$.ajax({
+			url : helpdeskurl,
+			data : datastring,
+			type : "POST",
+			success:function(response){
+				 //alert(response);
+			}
+		});
+		
+	}
+});
+</script>
+<?php unset($_SESSION['userinfodata']); ?>
+
+<?php   $postUrl = $this->url(array( 'controller' => 'user',
+                                    //'action'     => 'postform'
+	)); 
+        $cmiurl = $this->url(array('controller' => 'user', 'action' => 'userinfoedit')); 
+        $cmiurl1 = $this->url(array('controller' => 'user','action' => 'changeuserpassword')); 
+        $userRecord = $this->userRecord;
+        $userid = new Zend_Session_Namespace('userid');
+        $admname = new Zend_Session_Namespace('adminMname');
+	 $role = new Zend_Session_Namespace('role');
+	// echo "ROLE=".$role->role;
+	?>
+
+<h2 class="btn btn-block btn-danger margin_bottom10 col-sm-12">My Account</h2>	
+
+<div class="cntnt">
+	<div class="row">
+		<div class="col-sm-12">
+                                    <?php 
+                                        if($this->successMsg){
+                                            echo "<div class='success-msg'>".$this->successMsg."</div>"; 
+                                        }
+                                    ?>
+					<div id="profilePage">
+						
+						<div id="profile">
+
+							<!--<h2><font size="2"><strong>My Account</strong></font></h2>-->
+							<div align="left">
+								<ul class="menu_1g">
+									<!--<li><a class="btn btn-default btn-warning text-center rolBtn" href="uploadprofileimage"><a class="btn btn-default btn-warning text-center rolBtn" href="javascript:openPopUp('<?php //echo $this->baseUrl('/user/startupload/?uid=').$userid->userid;?>','450','400');">
+									<!--<div style="border: solid 1px gray; background-color: #B3D6D9; width: 172px; padding: 3px; cursor: hand">Upload Image </div>Upload Image</a></li>-->
+									<li><a href="<?php echo $cmiurl;?>" class="menu1 btn btn-default btn-warning text-center rolBtn">Edit Profile</a></li>
+									<li><a href="<?php echo $cmiurl1;?>" class="menu1 btn btn-default btn-warning text-center rolBtn">Change Password</a></li>
+								</ul>
+							</div>
+							
+							<div id="leftCol">
+							
+							
+								
+
+								<div id="photo">
+									
+									<?php 
+								
+								if(empty($this->imgsource)){ ?>
+								<img src="<?php echo $this->baseUrl('data/uploads/profileimage/dummy.png');?>" alt="" height="100px;" width="100px;" />
+
+								<?php }	else{
+									?>
+									<img src="<?php echo $this->baseUrl('data/uploads/profileimage/').$this->imgsource;?>" alt="" height="100px;" width="100px;" />
+									<?php }?>
+									
+									<!--<p><?php echo ucfirst($userRecord->firstname)." ".ucfirst($userRecord->lastname); ?></p>-->
+								</div>
+
+								
+					</div>		
+							
+								<div id="f_upload">
+								<!--<a class="menu_1g" href="javascript:openPopUp('/DMS/user/startupload/?uid=<?php //echo $userid->userid;?>','450','400');"> -->
+									<!--<div style="border: solid 1px gray; background-color: #B3D6D9; width: 172px; padding: 3px; cursor: hand">Upload Image </div>-->
+								<!--	Upload Image
+									</a> -->
+
+								</div>
+								
+													
+								<!--<div id="profileOptions">
+									<p><a class="menu_1g" href="javascript:openPopUp('/DMS/user/startupload/?uid=<?php //echo $userid->userid;?>','450','400');">Upload Image </a></p>
+								</div>-->	
+								
+						<div id="info">
+								
+                                                                <p><span class="ttl">Role:</span><span class="dtl"><?php if($userRecord->role==1){echo "Administrator";}elseif($userRecord->role==2){echo "State Administrator";}elseif($userRecord->role==3){echo "Central Administrator";}elseif($userRecord->role==4){echo "Scheme Owner";}  elseif($userRecord->role==5){echo "District Administrator";} ?></span></p>		
+                                                                <p><span class="ttl">Username:</span><span class="dtl"><?php echo $userRecord->username ?></span></p>
+								<p><span class="ttl">Name:</span><span class="dtl"><?php echo ucfirst($userRecord->firstname)." ".ucfirst($userRecord->lastname); ?></span></p>
+                                                                <!-- <p><span class="ttl">Organisation:</span><span class="dtl"><?php// if($userRecord->organisation){echo $userRecord->organisation;}else{ echo "--";} ?></span></p> -->
+														
+								<p><span class="ttl">Designation:</span><span class="dtl"><?php echo $userRecord->designation; ?></span></p>
+																
+								<p><span class="ttl">Mobile No. :</span><span class="dtl"><?php echo $userRecord->mobile ?></span></p>
+								<p><span class="ttl">Email Id:</span><span class="dtl"><?php echo $userRecord->email ?></span></p>
+								<!--		<p><span class="ttl">Role:</span><span class="dtl"><?php echo $userRecord->role ?></span></p> -->
+							</div>
+							<div class="clr"></div>
+		   
+						</div>
+
+
+					</div>
+					
+		</div>
+	</div>
+</div>

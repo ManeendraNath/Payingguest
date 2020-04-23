@@ -1,0 +1,52 @@
+<?php
+$customerbook_details = $this->customerbook_details;
+//print_r($customerhome_details);
+//die;
+?> 
+
+
+<div class="cntnt">
+    <ol class="breadcrumb  margin_top100">
+	</ol>
+ <h2 class="btn btn-block btn-danger col-sm-12 ">Total Confirmed Booking</h2>
+
+	 <table style="width:100%" border="1">
+	 
+        <tr>			
+            <th scope="row">PG-Name</th>
+            <th scope="row">Registered UserName</th>
+            <th scope="row">Gender</th>
+            <th scope="row">ContactNumber</th>
+			<th scope="row">Address</th>
+			<th scope="row">Email</th>
+        </tr>
+		<?php
+		
+        $i = 1;
+	
+ foreach ($customerbook_details as $entry):
+ 
+ { ?>
+  <tr>
+    <td><?php echo $entry['PG-Name']; ?></td>
+    <td><?php echo $entry['username']; ?></td>
+    <td><?php echo $entry['gender']; ?></td>
+    <td><?php echo $entry['contactno'];?></td>
+	<td><?php echo $entry['address'];?></td>
+	<td><?php echo $entry['email'];?></td>
+	</tr>
+  <?php
+                $i++;
+            }
+        
+        ?>  
+		
+<?php endforeach ?>
+</table>
+</div>
+
+ 
+        
+
+		
+		

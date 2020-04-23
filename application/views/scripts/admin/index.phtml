@@ -1,0 +1,38 @@
+<?php
+$admin_details = $this-> admin_details;
+//print_r($customerhome_details);
+//die;
+?> 
+
+			<?php
+$postUrl = $this->url(array(
+    'controller' => 'Admin',
+    'action' => 'index'
+        ));
+?>
+<div>
+
+<div style="background: grey
+">
+<form role="form" method="post" action="<?php echo $postUrl; ?>" name="admin" id="admin">
+<div class="cntnt">
+
+    <ol class="breadcrumb  margin_top100">
+	
+	</ol>
+	
+	<h2 class="btn btn-block btn-success col-sm-12 "> Welcome to Admin Section </h2>
+
+	<div class="col-md-12 col-sm-12 text-center">
+		<div class="form-group" >
+			
+			<input type="button"  class="btn btn-info" value="Total Registered Owner" onclick="window.location.href='registered-owner'" />
+			 <input type="button"  class="btn btn-info" value="PG Details" onclick="window.location.href='pg-homedetails'" />
+            
+			 <input type="button"  class="btn btn-info" value="Total Registered Customer" onclick="window.location.href='registered-customer'" />
+			
+			 </div>	
+			 </div>
+			 </form>
+			  </div>
+			  z

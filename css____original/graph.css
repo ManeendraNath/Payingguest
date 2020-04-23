@@ -1,0 +1,48 @@
+.mainContant
+{
+	/*min-height:231px*/
+}
+.panel-heading {
+  padding: 0;
+	border:0;
+}
+.panel-title>a, .panel-title>a:active{
+	display:block;
+	padding:9px;
+  font-size:12px;
+  font-weight:bold;
+	letter-spacing:1px;
+  word-spacing:3px;
+	text-decoration:none;
+}
+.panel-heading  a:before {
+   font-family: 'Glyphicons Halflings';
+   content: "\e114";
+   float: right;
+   transition: all 0.5s;
+}
+.panel-heading.active a:before {
+	-webkit-transform: rotate(180deg);
+	-moz-transform: rotate(180deg);
+	transform: rotate(180deg);
+}
+
+.report.state_re h2{padding-left:15px;}
+.report:hover img{bottom:27px;transform:scale(1.3);}
+.report{height:120px;padding:5px 0px 0px 15px;}
+.report h2{margin-bottom:5px;padding-bottom:0px;}
+.report.state_re p{padding-top:5px;width:auto;text-align:left;padding:0px 95px 0px 15px;}
+.row.reportView{margin:0px -7px;}
+.row.reportView .col-md-3,.row.reportView .col-sm-6{padding:0px 7px;}
+.row.reportView .report.fund_re{margin-left:0px;}
+.reportView .active label,.reportView .active label a{display:block;}
+hr{margin:0px 0px 10px}
+select.form-control{max-width:200px;}
+ .mainContant.searchScheme{min-height:auto!important;}
+@media (max-width: 992px){
+	.report.fund_re,.report.bene_re,.report.scheme_re,.report.state_re{margin-right:0px;margin-bottom:10px;}
+	.report.scheme_re,.report.bene_re{margin-left:0px;}
+}
+@media (max-width: 767px){
+	select.form-control{width:auto;}
+}

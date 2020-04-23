@@ -1,0 +1,54 @@
+<?php
+$customerhome_details = $this-> customerhome_details;
+//print_r($customerhome_details);
+//die;
+?> 
+<?php
+$postUrl = $this->url(array(
+    'controller' => 'Customer',
+    'action' => 'check1-pgcustomerdetails'
+        ));
+?>
+<form role="form" method="post" action="<?php echo $postUrl; ?>" name="add-contactus" id="add-contactus">
+<div class="cntnt">
+    <ol class="breadcrumb  margin_top100">
+	</ol>
+ <h2 class="btn btn-block btn-danger col-sm-12 "> PG Home Details at Delhi</h2>
+ 
+	 <table style="width:100%" border="1">
+	 
+        <tr>			
+
+            <th scope="row">Name</th>
+            
+           
+			<th scope="row">Address</th>
+        </tr>
+		<?php
+		
+        $i = 1;
+	
+ foreach ($customerhome_details as $entry):
+ 
+ { ?>
+  <tr>
+    <td><?php echo $entry['name']; ?></td>
+    
+    
+	<td><?php echo $entry['address'];?></td>
+	</tr>
+  <?php
+                $i++;
+            }
+        
+        ?>  
+		
+<?php endforeach ?>
+</table>
+
+ 
+        
+
+   </div>
+		</form>
+		

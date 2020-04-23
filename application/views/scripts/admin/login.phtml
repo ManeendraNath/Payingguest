@@ -1,0 +1,61 @@
+<div class="cntnt">
+    <ol class="breadcrumb  margin_top100">
+  </ol>
+   
+	<h2 class="btn btn-block btn-success col-sm-12 ">ADMIN SECTION</h2>
+		<div class="contact-us-img"><img src="<?php echo $this->baseUrl("imagesorg/admin-login-icon-8.jpg"); ?>" alt="Contact Us" align="right"  ></div>
+	       
+<?php
+$postUrl = $this->url(array(
+    'controller' => 'Admin',
+    'action' => 'login'
+        ));
+?>
+        <form role="form" method="post" action="<?php echo $postUrl; ?>" name="home-details" id="home-details">
+    <?php if ($this->form->getMessages()) { ?>
+        <div><ul>
+                <?php
+                $form_errors = $this->form->getMessages();
+				
+                foreach ($form_errors as $field => $arrErrors) {
+                    echo '<li>' . $this->formErrors($arrErrors) . '</li>';
+                }
+                ?>
+            </ul></div>
+			
+	<?php } ?>
+	  <div class="site-section site-section-sm">
+      <div class="container">
+        <div class="row">
+		
+		<?php
+    if ($this->errorMessage) {
+        echo "<h4 class='alert-danger'>" . $this->errorMessage . "</h4>";
+    }
+    ?>     
+        <?php
+    if ($this->successMessage) {
+        echo "<h4 class='success'>" . $this->successMessage . "</h4>";
+    }
+    ?>  
+		    
+         <div class="col-md-12 col-lg-8 mb-5">
+               <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+				<h3><center><label class="btn btn-block btn-info col-sm-12" for="name">Login</label></h3>
+                  <h3><center><label class="font-weight-bold" for="name">UserName</label></h3>
+                 <h3><center> <?php echo $this->form->name; ?></h3>
+                </div>
+              </div>
+                 <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+                  <h3><center><label class="font-weight-bold" for="location">Password</label></h3>
+                 <h3><center> <?php echo $this->form->password; ?></h3>
+                </div>
+              </div>
+			  <div align="left">
+                <h3><center><button type="submit" name="Submit" class="btn btn-default btn-info text-center"  id="sechemSearchButton">Submit</button></h3>
+            </div>
+			</div>
+			</div>
+			</form>

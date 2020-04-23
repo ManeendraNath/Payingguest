@@ -1,0 +1,81 @@
+<?php 
+$user = new Zend_Session_Namespace('user_session');
+$captchanew = new Zend_Session_Namespace('captchanew');
+$captchanew->captchanew = session_id();
+?>
+<script type="text/javascript" nonce="<?php echo $user->nonce_str; ?>">
+
+window.onload = function(){
+	document.getElementById('scheme_owner').disabled = true;
+}
+ $(document).ready(function () {
+	 
+        //validation to add scheme 
+        jQuery("#assign-scheme").submit(function ()
+        {
+        if(document.assignscheme.vercode.value == ''){
+		alert("Captcha code <?php echo CANTEMPTY; ?>");
+		document.assignscheme.vercode.focus();
+		return false;
+	}
+	return true;
+        });
+    });
+</script>
+<div class="cntnt table-responsive">
+	
+	<ol class="breadcrumb  margin_top10" id="breadcrumbId">
+		<li><a href="<?php echo $this->baseUrl("/");?>"><?php echo home; ?></a></li>
+		<li><a href="<?php echo $this->baseUrl("user/assign-scheme-user-list");?>">Assign Scheme</a></li>
+		<li class="active">Assign Scheme(s) To Scheme Owner</li>
+	</ol>
+	
+	<h2 class="btn btn-block btn-danger margin_bottom10 col-sm-12">Assign Scheme(s) To Scheme Owner</h2>
+	
+	<form role="form" method="post" name="assignscheme" id="assign-scheme" >
+    <?php if ($this->success_message) { ?>	
+        <div class="success-msg margin_top20"> <?php echo $this->success_message; ?></div>
+    <?php } ?>	
+    <?php if ($this->error_message) { ?>	
+        <div class="error-msg margin_top20"> <?php echo $this->error_message; ?></div>
+    <?php } ?>		
+
+		<div class="form-group">
+			<label>Scheme Owner<sup class="require">*</sup> </label>
+			<?php echo $this->form->scheme_owner; ?>
+			<?php echo $this->form->scheme_owner_id; ?>
+		</div>
+		<div class="form-group ">
+		<table>					 
+			<thead>
+				<tr>
+					<th scope="col">Ministry Information</th> 
+					<th scope="col">Scheme Name</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td rowspan="<?php echo $this->scheme_count; ?>"><?php echo $this->ministry_name; ?></td>
+					<td><?php echo $this->form->scheme_list; ?></td>
+				</tr>
+			</tbody>
+		</table>
+		</div>
+
+		<!-----------Add Captcha Code Script----->
+		<div class="form-group col-sm-4">
+			<div><label>Captcha Code<sup class="require">*</sup></label></div>
+			<img src="<?php echo $this->baseUrl('cool_capcha/captcha.php'); ?>" id="captcha" class="pull-left" width="248" height="40" />
+			<a onclick="document.getElementById('captcha').src='<?php echo $this->baseUrl('cool_capcha/captcha.php'); ?>?'+Math.random();document.getElementById('vercode').focus();" id="change-image" class="menu4 refresh pull-left" style="cursor:pointer"><img src="<?php echo $this->baseUrl('images/refress.png'); ?>" class ="refresh" id="refresh" /></a>
+			<?php echo $this->form->vercode; ?>
+		   <input type="hidden"  name ="sessionCheck" value="<?php echo $captchanew->captchanew;?>" />
+		</div>
+	   <!--------------End Captcha Code------->
+		<div class="col-md-12 col-sm-12 text-center">
+			<div class="form-group">
+				<button type="submit" name="Submit" class="btn btn-default btn-warning text-center" id="sechemSearchButton">Submit</button>
+				<button type="reset" name="Reset" class="btn active text-center" id="resetButton" ><?php echo CANCEL; ?></button>
+			</div>
+		</div>
+	</form>
+</div>

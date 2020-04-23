@@ -1,0 +1,39 @@
+<p>  <a href="https://www.google.com">click here</a> to open google </p>;
+
+   if ($dataform['newpassword'] !== $dataform['repeatpassword']) {
+                $this->view->assign('errorMessage', "New Password and repeatpassword does not match!");
+                return false;
+            } 
+        if (!$owner_id  || !$user_token) {
+                $this->view->assign('errorMessage', "Unable to Authenticate User");
+                return false;
+            }
+			
+			
+       $get_user_details = $this->owner_model->getowner($owner_id);
+            if ($get_user_details) {
+
+				$enc_pwd = $this->_helper->Custom->findMd5Value($dataform['newpassword']);
+				
+				
+		  if (($get_user_details['reset_signtoken'] === $user_token)) {
+
+                    $this->owner_model->changeownerPassword($enc_pwd, $owner_id);
+
+                    $columns = array( 'reset_login_token' => NULL);
+                    $this->owner_model->updateownerstate($owner_id, $columns);
+
+                    $this->_redirect('/owner/login');
+                } 
+           
+		else {
+                    $this->view->assign('errorMessage', "Some Error Occured");
+                    return false;
+                }
+			}
+			else {
+				 $this->view->assign('errorMessage', "User is not authenticated");
+				
+ }
+		}
+			

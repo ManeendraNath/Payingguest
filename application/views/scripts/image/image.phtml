@@ -1,0 +1,15 @@
+<div class="cntnt">
+    <ol class="breadcrumb  margin_top100">
+  </ol>
+<?php
+$postUrl = $this->url(array(
+    'controller' => 'Image',
+    'action' => 'image'
+        ));
+?>
+
+<form method="post" action="" enctype='multipart/form-data'>
+  <input type='file' name='file' />
+enter image name: <input type='text' name='filename' />
+   <input type="submit" name="submit" value="UPLOAD"><br>
+</form>

@@ -1,0 +1,2032 @@
+<?php
+require_once(realpath(__DIR__.'/sendmail.php'));
+/*---(Web-service Functions According To New Database )---|
+  |	 * Purpose:-Prevent data discrepancy                  |
+  |-------------------------------------------------------|
+*/
+// get scheme id
+function get_scheme_info($schemecode){
+	global $con;
+	$result = mysqli_query($con,"SELECT scheme_id FROM dbt_scheme_master where scheme_code = '$schemecode' and scheme_status = 1");
+	$schemeinfo = mysqli_fetch_object($result);
+	return $schemeinfo;
+}
+
+// get web-service URL details
+function get_webservice_url_details($execution_day,$api_owner,$time_val){
+	global $con;
+	if($api_owner == 0){
+		$result = mysqli_query($con,"SELECT w.*, s.scheme_code FROM dbt_webservice_details as w join dbt_scheme_master as s on s.scheme_id = w.scheme_id where w.execution_day IN (0,$execution_day) and w.webservice_status = 1 and w.webservice_schedule_status = 'S' and w.execution_time = '$time_val' and w.api_owner = 0");
+	} else {
+		$result = mysqli_query($con,"SELECT w.* FROM dbt_webservice_details as w where w.execution_day = '$execution_day' and w.webservice_status = 1 and w.webservice_schedule_status = 'S' and w.execution_time = '$time_val' and w.api_owner > 0");
+	}
+	$webservice_url_details = array();
+	while($webservice_url_info = mysqli_fetch_object($result)){
+		$webservice_url_details[] = $webservice_url_info;
+	}
+	return $webservice_url_details;
+}
+
+// get web-service parameters details
+function get_parameters_details($webservice_id){
+	global $con;
+	$result = mysqli_query($con,"SELECT * FROM dbt_webservice_parameter where webservice_id = '$webservice_id' order by webservice_parameter_id");
+	$parameters_details = array();
+	while($parameters_info = mysqli_fetch_object($result)){
+		$parameters_details[] = $parameters_info;
+	}
+	return $parameters_details;
+}
+
+// process data for validation, log, insertion and updation
+function insert_scheme_data($responsedata, $schemeid, $servicedate, $is_updated, $txt, $nodalp_email, $cc_email, $dataday, $datamonth, $datayear, $scheme_code, $webservice_data_type) {
+	global $con;
+	$ip_address = $_SERVER['REMOTE_ADDR'];
+	$userid = 1;
+	$returnvalue = array();
+	$errormsg = '';
+	$validation_message = '';
+	
+	$benefit_type_query = mysqli_query($con,"SELECT scheme_benefit_type_id FROM dbt_scheme_benefit_type_relation where scheme_id = '$schemeid'");
+	$benefit_type = array();
+	while($benefit_type_id = mysqli_fetch_object($benefit_type_query)){
+		$benefit_type[] = $benefit_type_id->scheme_benefit_type_id;
+	}		
+	if($responsedata){	
+		if(isset($responsedata[0]['scheme-progress']['day'])){
+			$day_val = intval($responsedata[0]['scheme-progress']['day']);
+		} else {
+			$day_val = 1;
+		}
+		$month = intval($responsedata[0]['scheme-progress']['month']);
+		$year = intval($responsedata[0]['scheme-progress']['year']);
+		if(intval($month) <= 3) {
+			$s_year = intval($year) - 1;
+			$e_year = $year;
+		} else {
+			$s_year = $year;
+			$e_year = intval($year) + 1;
+		}
+		$financial_year = $s_year.'_'.$e_year;
+		
+		if(isset($responsedata[0]['message'])){
+			$txt .= "Scheme Code : ".$responsedata[0]['schemecode']."\n";
+			$txt .= "Response Message : ".$responsedata[0]['message']."\n\n";
+			$errormsg .= $responsedata[0]['message'];
+		} else {
+			$error=0;
+			switch ($webservice_data_type) {
+				case 1:
+					$res=stateValidation($responsedata, $dataday, $datamonth, $datayear);
+					break;
+				case 2:
+					$res=districtValidation($responsedata, $dataday, $datamonth, $datayear);
+					break;
+				case 3:
+					$res=nationValidation($responsedata, $dataday, $datamonth, $datayear);
+					break;
+				default:
+					$errormsg .= "Not match with location.";
+			}
+			
+			// if($res[0]>0)	{
+				// $error++;
+				// if(is_array($res[1])) {
+					// $errormsg .= 'Web-service validation failed';
+					// $email_response = validation_error_email($res[1]['error'],$schemeid,$datamonth,$benefit_type,$s_year,$e_year,$nodalp_email,$cc_email);
+				// } else {
+					// $errormsg.=$res[1];
+				// }	
+			// }
+			if($res[0]>0)
+			{
+				// $txt .= $validation_message = $errormsg;
+				$created = date('Y-m-d H:i:s');
+				$execution_date = date('Y-m-d', strtotime($servicedate));
+				$sql_query = "INSERT INTO dbt_state_district_validation_failed (scheme_id, execution_date, created, ip_address) VALUES ($schemeid, '$execution_date', '$created', '$ip_address')";
+				mysqli_query($con, $sql_query);
+			}
+		//	else // state count validation disabled
+			{
+				$validation_message = "";
+				$validation_response = generalValidation($responsedata,$schemeid,$month,$benefit_type,$s_year,$e_year,$servicedate,$txt,$nodalp_email,$cc_email,$scheme_code);
+				
+				if($validation_response['error_result']>0){
+					$txt = $validation_response['log'];
+					$email_response = validation_error_email($validation_response['error'],$schemeid,$datamonth,$benefit_type,$s_year,$e_year,$nodalp_email,$cc_email);
+					$txt .= $validation_message = $errormsg .= $validation_response['validation_message'];				
+				} else {
+					$txt = $validation_response['log'];
+					$checkmonthval = $responsedata['0']['scheme-progress']['month'];
+					$checkmonthname = strtolower(jdmonthname(gregoriantojd($checkmonthval,1,$s_year),0));
+					$checkmonthvallen = strlen($checkmonthval);
+					
+					if($checkmonthvallen > 0 && $checkmonthvallen < 3 && isset($checkmonthname)){ //Check month value
+						$check_data = mysqli_query($con,"SELECT * FROM dbt_scheme_beneficiary_data where scheme_id = $schemeid and financial_year = '$financial_year'");
+						$check_data_obj = mysqli_fetch_object($check_data);
+						if(count($check_data_obj) == 0){
+							
+							// dbt_scheme_beneficiary_data data from web-service
+							$ben_table_name = 'dbt_scheme_beneficiary_data';
+							$insert_data = insert_update_webservice_data($responsedata, $schemeid, $benefit_type, $ben_table_name);
+							
+						} else if(count($check_data_obj) > 0){
+							
+							$data_month_avl = $check_data_obj->reporting_month;
+							$data_date_avl = $check_data_obj->scheme_transaction_from_date;
+							$data_month_date = $year.'-'.$month.'-'.$day_val.' 00:00:01';
+										
+							if(strtotime($data_month_date) == strtotime($data_date_avl)){
+																				
+								// dbt_scheme_beneficiary_data data from web-service
+								$ben_table_name = 'dbt_scheme_beneficiary_data';
+								$insert_data = insert_update_webservice_data($responsedata, $schemeid, $benefit_type, $ben_table_name);
+								
+							} else {
+								
+								$check_log_data = mysqli_query($con,"SELECT * FROM dbt_scheme_beneficiary_data_log1 where scheme_id = $schemeid and reporting_month = $month and financial_year = '$financial_year' and scheme_transaction_from_date = '$data_month_date'");			
+								$check_log_data_obj = mysqli_fetch_object($check_log_data);
+								if(isset($check_log_data_obj)){
+									$data_month_avl = $check_log_data_obj->reporting_month;
+									$data_date_avl = $check_log_data_obj->scheme_transaction_from_date;
+								}
+								
+								if(count($check_log_data_obj) == 0 && strtotime($data_date_avl) < strtotime($data_month_date)){
+									
+									// dbt_scheme_beneficiary_data_log1 data from dbt_scheme_beneficiary_data
+									$fetch_data = mysqli_query($con,"SELECT * FROM dbt_scheme_beneficiary_data where scheme_id = $schemeid and reporting_month = $data_month_avl and financial_year = '$financial_year' and scheme_transaction_from_date = '$data_date_avl'");
+									while($fetch_data_obj = mysqli_fetch_object($fetch_data)){
+										if(isset($fetch_data_obj->state_code)){
+											$state_code = $fetch_data_obj->state_code;
+										} else {
+											$state_code = 'NULL';
+										}
+										if(isset($fetch_data_obj->district_code)){
+											$district_code = $fetch_data_obj->district_code;
+										} else {
+											$district_code = 'NULL';
+										}
+										$ben_query = "INSERT INTO dbt_scheme_beneficiary_data_log1 (scheme_id, state_code, district_code, no_beneficiaries_normative, no_beneficiaries_additional_state, no_beneficiaries_digitised, no_beneficiaries_aadhaar, no_beneficiaries_mobile, no_group, beneficiary_data_log1_status, data_mode_id, scheme_transaction_from_date, scheme_transaction_to_date, reporting_month, financial_year, updated_by, created, updated, ip_address) VALUES ($fetch_data_obj->scheme_id, $state_code, $district_code, '$fetch_data_obj->no_beneficiaries_normative', '$fetch_data_obj->no_beneficiaries_additional_state', '$fetch_data_obj->no_beneficiaries_digitised', '$fetch_data_obj->no_beneficiaries_aadhaar', '$fetch_data_obj->no_beneficiaries_mobile', '$fetch_data_obj->no_group', '1', '2', '$fetch_data_obj->scheme_transaction_from_date', '$fetch_data_obj->scheme_transaction_to_date', '$fetch_data_obj->reporting_month', '$fetch_data_obj->financial_year', $userid, '$fetch_data_obj->created', '$fetch_data_obj->updated', '$ip_address')";
+										$insert_ben_query = mysqli_query($con, $ben_query);
+									}
+									
+									// delete data from dbt_scheme_beneficiary_data
+									$delete_data = mysqli_query($con,"DELETE FROM dbt_scheme_beneficiary_data where scheme_id = $schemeid and reporting_month = $data_month_avl and financial_year = '$financial_year' and scheme_transaction_from_date = '$data_date_avl'");
+									
+									// dbt_scheme_beneficiary_data data from web-service
+									$ben_table_name = 'dbt_scheme_beneficiary_data';
+									$insert_data = insert_update_webservice_data($responsedata, $schemeid, $benefit_type, $ben_table_name);
+									
+								} else if(count($check_log_data_obj) == 0 && strtotime($data_date_avl) > strtotime($data_month_date)){
+									// dbt_scheme_beneficiary_data_log1 data from web-service
+									$ben_table_name = 'dbt_scheme_beneficiary_data_log1';
+									$insert_data = insert_update_webservice_data($responsedata, $schemeid, $benefit_type, $ben_table_name);
+									
+								} else if(count($check_log_data_obj) > 0){
+									// dbt_scheme_beneficiary_data_log1 data from web-service
+									$ben_table_name = 'dbt_scheme_beneficiary_data_log1';
+									$insert_data = insert_update_webservice_data($responsedata, $schemeid, $benefit_type, $ben_table_name);
+								}
+							}
+										
+						}
+						$is_updated = 'yes';
+					
+					} else {
+						$txt .= $errormsg = "Month value is wrong in web-service response OR Error format is incorrect.";
+						$txt .= "\n\n";
+					}//Month Val Check End
+				} // general validation closed
+			}
+		}
+		
+	} else {
+		$txt .= $errormsg = 'Data not found!';
+	} // end if
+	$returnvalue[0] = $txt;
+	$returnvalue[1] = 'no';
+	$returnvalue[2] = $is_updated;
+	$returnvalue[3] = $validation_message;
+	$returnvalue[4] = $errormsg;
+	
+	return $returnvalue;
+
+} // end function insertschemedata
+
+
+function nationValidation($responsedata, $dataday, $datamonth, $datayear) {
+	$error=0;
+	$msg='';
+	if(count($responsedata)==1 && $responsedata[0]['location']['state_code'] == '00')	{
+		$validation_res = dataDurationValidation($responsedata, $dataday, $datamonth, $datayear);
+		if($validation_res[0] > 0){
+			$error++;
+			$msg= $validation_res[1];
+		}
+	}
+	else
+	{
+		$msg= "Only single record expected in nation wise data with state code 00.";
+		$error++;
+	}
+	$res[0]=$error;
+	$res[1]=$msg;
+	return $res;
+}
+
+function stateValidation($responsedata, $dataday, $datamonth, $datayear) {
+	global $con;
+	$error=0;
+	$validation_res = "";
+	$msg='';
+	
+	foreach($responsedata as $value) {
+		$s_code = $value['location']['state_code'];
+		$sarray[]=$s_code;
+	}
+	$unique_states = array_unique($sarray, SORT_REGULAR);
+
+	$sql=mysqli_query($con, "SELECT state_code FROM dbt_state_master where state_master_status = 1");
+	
+	if(mysqli_num_rows($sql)==count($unique_states))
+	{
+		while($res = mysqli_fetch_array($sql))	$statecode[]=$res[0];
+		$msg= "state count match.<br/>";
+		foreach($unique_states as $value) {
+			if(!in_array($value, $statecode))
+			{
+				$error++;
+				$msg= "state count not match.<br/>";
+			}
+			else
+			{
+				$validation_res = dataDurationValidation($responsedata, $dataday, $datamonth, $datayear);
+				if($validation_res[0] > 0){
+					$error++;
+					$msg= $validation_res[1];
+				}
+			}
+		}
+	}
+	else
+	{
+		
+		$msg= "state count not match.";
+		$error++;
+	}
+	$res[0]=$error;
+	$res[1]=$msg;
+	return $res;
+}
+
+function districtValidation($responsedata, $dataday, $datamonth, $datayear) {
+	global $con;
+	$error=0;
+	$msg='';
+	$district = array();
+	$db_location = array();
+	foreach($responsedata as $value) {
+		if(isset($value['location']['district_code'])){
+			$district[$value['location']['state_code']][] = $value['location']['district_code'];
+		}
+	}
+	
+	ksort($district);
+	foreach($district AS $k=>$v)	sort($district[$k]);
+
+	$sql=mysqli_query($con, "SELECT district_code, state_code FROM dbt_district_master where district_master_status = 1 order by state_code, district_code");
+	while($res = mysqli_fetch_object($sql))	$db_district[$res->state_code][] = $res->district_code;
+	
+	if($district==$db_district)
+	{
+		$validation_res = dataDurationValidation($responsedata, $dataday, $datamonth, $datayear);
+		if($validation_res[0] > 0){
+			$error++;
+			$msg= $validation_res[1];
+		}
+	}
+	else
+	{
+		$msg= "District count not match.";
+		$error++;
+	}
+	$res[0]=$error;
+	$res[1]=$msg;
+	return $res;
+}
+
+function dataDurationValidation($responsedata, $dataday, $datamonth, $datayear)
+{
+	$error = 0;
+	$res = array();
+	foreach ($responsedata AS $data) {
+		
+		if(intval($dataday) != 0){
+			if(intval($dataday) != intval($data['scheme-progress']['day'])) {
+				$error++;
+				$res[1]['error'][$data['location']['state_code']]['state_code'] = $data['location']['state_code'];
+				$res[1]['error'][$data['location']['state_code']]['state_name'] = $data['location']['state_name'];
+				$res[1]['error'][$data['location']['state_code']]['district_code'] = isset($data['location']['district_code']) ? $data['location']['district_code'] : "";
+				$res[1]['error'][$data['location']['state_code']]['district_name'] = isset($data['location']['district_name']) ? $data['location']['district_name'] : "";
+				$res[1]['error'][$data['location']['state_code']]['error'][$error] = array(
+					'label'=>'Day not matched : '.$data['scheme-progress']['day'].' &#8800; '.$dataday,
+					'values'=>'Responce data day not matched for requested day'
+				);
+			}
+		}
+		if(intval($datamonth) != intval($data['scheme-progress']['month'])) {
+			$error++;
+			$res[1]['error'][$data['location']['state_code']]['state_code'] = $data['location']['state_code'];
+			$res[1]['error'][$data['location']['state_code']]['state_name'] = $data['location']['state_name'];
+			$res[1]['error'][$data['location']['state_code']]['district_code'] = isset($data['location']['district_code']) ? $data['location']['district_code'] : "";
+			$res[1]['error'][$data['location']['state_code']]['district_name'] = isset($data['location']['district_name']) ? $data['location']['district_name'] : "";
+			$res[1]['error'][$data['location']['state_code']]['error'][$error] = array(
+				'label'=>'Month not matched : '.$data['scheme-progress']['month'].' &#8800; '.$datamonth,
+				'values'=>'Responce data month not matched for requested data month'
+			);
+		}
+		if(intval($datayear) != intval($data['scheme-progress']['year'])) {
+			$error++;
+			$res[1]['error'][$data['location']['state_code']]['state_code'] = $data['location']['state_code'];
+			$res[1]['error'][$data['location']['state_code']]['state_name'] = $data['location']['state_name'];
+			$res[1]['error'][$data['location']['state_code']]['district_code'] = isset($data['location']['district_code']) ? $data['location']['district_code'] : "";
+			$res[1]['error'][$data['location']['state_code']]['district_name'] = isset($data['location']['district_name']) ? $data['location']['district_name'] : "";
+			$res[1]['error'][$data['location']['state_code']]['error'][$error] = array(
+				'label'=>'Year not matched : '.$data['scheme-progress']['year'].' &#8800; '.$datayear,
+				'values'=>'Responce data year not matched for requested data year'
+			);
+		}
+	}
+	$res[0] = $error;
+	return $res;
+	
+}
+
+
+// Update web-service data insertion and updation
+function insert_update_webservice_data($responsedata, $schemeid, $benefit_type, $ben_table_name)
+{
+	global $con;
+	foreach($responsedata as $dataval){
+		// variable initialization
+		$district_code = $district_name = $state_code = $state_name = $schemecode = $day = $month = $year = '';
+		$no_of_beneficiaries_normative_central_and_state_share = $no_of_additional_beneficiaries_supported_by_state = $total_no_of_beneficiaries = $no_of_beneficiaries_record_digitized = $no_of_authenticated_seeded_beneficiaries = $no_of_beneficiaries_whom_mobile_no_captured = $no_of_shg_group = '';
+		
+		$fund_transferred_center_normative = $fund_transferred_state_normative = $total_fund_transfered_State_additional_x = $total_fund_transfered_state_additional_y = $total_fund_transferred_normative = $central_share_expenditure_incurred_inkind = $normative_state_share_expenditure_incurred_inkind = $additional_state_share_expenditure_incurred_inkind = $state_share_expenditure_incurred_to_additional_beneficiaries_inkind = $total_expenditure_incurred_inkind = '';
+					
+		$no_transaction_electronic_authenticated = $total_fund_electronic_authenticated = $no_transaction_non_electronic_authenticated = $total_fund_non_electronic_authenticated = $unit_of_measurement_inkind = $quantity_transferred_inkind = $no_of_authenticated_transactions_inkind = $dbt_expenditure_incurred_inkind = '';
+		
+		$additional_parameter1 = $additional_parameter2 = $additional_parameter3 = '';
+		
+		// set values
+		if(isset($dataval['location']['district_code']) && $dataval['location']['district_code'] != 0){
+			$district_code = $dataval['location']['district_code'];
+		} else {
+			$district_code = 'NULL';
+		}
+		if(isset($dataval['location']['district_name'])){
+			$district_name = $dataval['location']['district_name'];
+		} else {
+			$district_name = 'NULL';
+		}
+		if(isset($dataval['location']['state_code']) && $dataval['location']['state_code'] != 0){
+			$state_code = $dataval['location']['state_code'];
+		} else {
+			$state_code = 'NULL';
+		}
+		if(isset($dataval['location']['state_name'])){
+			$state_name = $dataval['location']['state_name'];
+		} else {
+			$state_name = 'NULL';
+		}
+		
+		$schemecode = $dataval['general-information']['schemecode'];
+		$s_scheme_code = substr($schemecode,0,1);
+				
+		$month = $dataval['scheme-progress']['month'];
+		$year = $dataval['scheme-progress']['year'];
+		if(isset($dataval['scheme-progress']['day'])){
+			$day = $dataval['scheme-progress']['day'];
+			$to_day = $dataval['scheme-progress']['day'];
+		} else {
+			$day = '01';
+			$temp_date_val = $year.'-'.$month.'-01 00:00:01';
+			$to_day = date('t', strtotime($temp_date_val));
+		}
+		
+		//beneficiary-details
+		if(isset($dataval['beneficiary-details']['no_of_beneficiaries_normative_central_and_state_share'])){
+			$no_of_beneficiaries_normative_central_and_state_share = $dataval['beneficiary-details']['no_of_beneficiaries_normative_central_and_state_share'];
+		}			
+		if(isset($dataval['beneficiary-details']['no_of_additional_beneficiaries_supported_by_state'])){
+			$no_of_additional_beneficiaries_supported_by_state = $dataval['beneficiary-details']['no_of_additional_beneficiaries_supported_by_state'];
+		}
+		if(isset($dataval['beneficiary-details']['total_no_of_beneficiaries'])){
+			$total_no_of_beneficiaries = $dataval['beneficiary-details']['total_no_of_beneficiaries'];
+		}
+		if(isset($dataval['beneficiary-details']['no_of_beneficiaries_record_digitized'])){
+			$no_of_beneficiaries_record_digitized = $dataval['beneficiary-details']['no_of_beneficiaries_record_digitized'];
+		}
+		if(isset($dataval['beneficiary-details']['no_of_authenticated_seeded_beneficiaries'])){
+			$no_of_authenticated_seeded_beneficiaries = $dataval['beneficiary-details']['no_of_authenticated_seeded_beneficiaries'];
+		}
+		if(isset($dataval['beneficiary-details']['no_of_beneficiaries_whom_mobile_no_captured'])){
+			$no_of_beneficiaries_whom_mobile_no_captured = $dataval['beneficiary-details']['no_of_beneficiaries_whom_mobile_no_captured'];
+		}
+		if(isset($dataval['beneficiary-details']['number_of_groups_shg'])){
+			$no_of_shg_group = $dataval['beneficiary-details']['number_of_groups_shg'];
+		}
+		
+					
+		// cash fundtransfer-details
+		if(isset($dataval['fundtransfer-details']['central_share_fund_transferred_cash'])){
+			$fund_transferred_center_normative = $dataval['fundtransfer-details']['central_share_fund_transferred_cash'];
+		}
+		if(isset($dataval['fundtransfer-details']['normative_state_share_fund_transferred_cash'])){
+			$fund_transferred_state_normative = $dataval['fundtransfer-details']['normative_state_share_fund_transferred_cash'];
+		}
+		if(isset($dataval['fundtransfer-details']['additional_state_share_fund_transferred_cash'])){
+			$total_fund_transfered_State_additional_x = $dataval['fundtransfer-details']['additional_state_share_fund_transferred_cash'];
+		}
+		if(isset($dataval['fundtransfer-details']['state_share_fund_transferred_to_additional_beneficiaries_cash'])){
+			$total_fund_transfered_state_additional_y = $dataval['fundtransfer-details']['state_share_fund_transferred_to_additional_beneficiaries_cash'];
+		}
+		if(isset($dataval['fundtransfer-details']['total_fund_transferred_cash'])){
+			$total_fund_transferred_normative = $dataval['fundtransfer-details']['total_fund_transferred_cash'];
+		}
+		
+		// inkind fundtransfer-details
+		if(isset($dataval['fundtransfer-details']['central_share_expenditure_incurred_inkind'])){
+			$central_share_expenditure_incurred_inkind = $dataval['fundtransfer-details']['central_share_expenditure_incurred_inkind'];
+		}
+		if(isset($dataval['fundtransfer-details']['normative_state_share_expenditure_incurred_inkind'])){
+			$normative_state_share_expenditure_incurred_inkind = $dataval['fundtransfer-details']['normative_state_share_expenditure_incurred_inkind'];
+		}
+		if(isset($dataval['fundtransfer-details']['additional_state_share_expenditure_incurred_inkind'])){
+			$additional_state_share_expenditure_incurred_inkind = $dataval['fundtransfer-details']['additional_state_share_expenditure_incurred_inkind'];
+		}
+		if(isset($dataval['fundtransfer-details']['state_share_expenditure_incurred_to_additional_beneficiaries_inkind'])){
+			$state_share_expenditure_incurred_to_additional_beneficiaries_inkind = $dataval['fundtransfer-details']['state_share_expenditure_incurred_to_additional_beneficiaries_inkind'];
+		}
+		if(isset($dataval['fundtransfer-details']['total_expenditure_incurred_inkind'])){
+			$total_expenditure_incurred_inkind = $dataval['fundtransfer-details']['total_expenditure_incurred_inkind'];
+		}
+		
+		// cash transaction-details
+		if(isset($dataval['transaction-details']['total_no_transactions_electronic_modes_cash'])){
+			$no_transaction_electronic_authenticated = $dataval['transaction-details']['total_no_transactions_electronic_modes_cash'];
+		}
+		if(isset($dataval['transaction-details']['payment_electronic_modes_cash'])){
+			$total_fund_electronic_authenticated = $dataval['transaction-details']['payment_electronic_modes_cash'];
+		}
+		if(isset($dataval['transaction-details']['total_no_transactions_other_modes_cash'])){
+			$no_transaction_non_electronic_authenticated = $dataval['transaction-details']['total_no_transactions_other_modes_cash'];
+		}
+		if(isset($dataval['transaction-details']['payment_other_modes_cash'])){
+			$total_fund_non_electronic_authenticated = $dataval['transaction-details']['payment_other_modes_cash'];
+		}
+		
+		// inkind transaction-details
+		if(isset($dataval['transaction-details']['unit_of_measurement_inkind'])){
+			$unit_of_measurement_inkind = $dataval['transaction-details']['unit_of_measurement_inkind'];
+		}
+		if(isset($dataval['transaction-details']['quantity_transferred_inkind'])){
+			$quantity_transferred_inkind = $dataval['transaction-details']['quantity_transferred_inkind'];
+		}
+		if(isset($dataval['transaction-details']['no_of_authenticated_transactions_inkind'])){
+			$no_of_authenticated_transactions_inkind = $dataval['transaction-details']['no_of_authenticated_transactions_inkind'];
+		}
+		if(isset($dataval['transaction-details']['dbt_expenditure_incurred_inkind'])){
+			$dbt_expenditure_incurred_inkind = $dataval['transaction-details']['dbt_expenditure_incurred_inkind'];
+		}
+		
+		// additional-parameters
+		if(isset($dataval['additional-parameters'])){
+			if(!is_array($dataval['additional-parameters']['additional_parameter1'])){
+				$additional_parameter1 = $dataval['additional-parameters']['additional_parameter1'];
+			}
+			if(!is_array($dataval['additional-parameters']['additional_parameter2'])){
+				$additional_parameter2 = $dataval['additional-parameters']['additional_parameter2'];
+			}
+			if(!is_array($dataval['additional-parameters']['additional_parameter3'])){
+				$additional_parameter3 = $dataval['additional-parameters']['additional_parameter3'];
+			}
+		}
+		// Set transaction data from date and to date 
+		$scheme_transaction_from_date = $year.'-'.$month.'-'.$day.' 00:00:01';
+		$scheme_transaction_to_date = $year.'-'.$month.'-'.$to_day.' 23:59:59';
+		
+		if(intval($month) <= 3) {
+			$s_year = intval($year) - 1;
+			$e_year = $year;
+		} else {
+			$s_year = $year;
+			$e_year = intval($year) + 1;
+		}
+		$financial_year = $s_year.'_'.$e_year;
+		
+		$userid = 1;
+		$created = date('Y-m-d H:i:s');
+		$updated = date('Y-m-d H:i:s');
+		$ip_address = $_SERVER['REMOTE_ADDR'];
+		
+		
+		if($s_scheme_code == 'B'){
+			$total_no_of_beneficiaries = $no_of_beneficiaries_normative_central_and_state_share;
+		} elseif ($s_scheme_code == 'A' && $no_of_additional_beneficiaries_supported_by_state > 0){
+			$no_of_additional_beneficiaries_supported_by_state = 0;
+		}
+		
+		$check_ben_query = "SELECT COUNT(*) as count FROM ".$ben_table_name." WHERE scheme_id = '$schemeid' ";
+		if ($state_code == 'NULL') {
+			$check_ben_query.=" and state_code is null and district_code is null";
+		}
+		elseif ($district_code == 'NULL') {
+			$check_ben_query.=" and state_code = '$state_code' and district_code is null";
+		}
+		else {
+			$check_ben_query.=" and state_code = '$state_code' and district_code = '$district_code'";
+		}
+		$check_ben_query.=" and reporting_month = '$month' and financial_year = '$financial_year'";
+		$check_ben_query = mysqli_query($con, $check_ben_query);
+		$check_ben_data_obj = mysqli_fetch_array($check_ben_query);
+		
+		if($ben_table_name == 'dbt_state_scheme_beneficiary_data_log1'){
+			$ben_status_field_name = 'beneficiary_data_log1_status';
+		} else {
+			$ben_status_field_name = 'beneficiary_data_status';
+		}
+		
+		// update beneficiary data
+		$ben_query = "";
+		if($check_ben_data_obj[0] == 0){
+			$ben_query = "INSERT INTO ".$ben_table_name." SET ";
+			$where="";
+			$extra=", created = '$created', scheme_id = '$schemeid', state_code = $state_code, district_code = $district_code, reporting_month = '$month', financial_year = '$financial_year'";
+		} else {
+			$ben_query = "UPDATE ".$ben_table_name." SET ";
+			$extra="";
+			$where = "WHERE scheme_id = '$schemeid'";
+			if ($state_code == 'NULL'){
+				$where .= " and state_code is null and district_code is null";
+			}
+			else if ($district_code == 'NULL'){
+				$where .= " and state_code = '$state_code' and district_code is null";
+			}
+			else {
+				$where .= " and state_code = '$state_code' and district_code = '$district_code'";
+			}
+			$where .= " and reporting_month = '$month' and financial_year = '$financial_year'";
+		}
+		$ben_query .= " no_beneficiaries_normative = '$total_no_of_beneficiaries', no_beneficiaries_additional_state = '$no_of_additional_beneficiaries_supported_by_state', no_beneficiaries_digitised = '$no_of_beneficiaries_record_digitized', no_beneficiaries_aadhaar = '$no_of_authenticated_seeded_beneficiaries', no_beneficiaries_mobile = '$no_of_beneficiaries_whom_mobile_no_captured', no_group = '$no_of_shg_group', data_mode_id = '2', scheme_transaction_from_date = '$scheme_transaction_from_date', scheme_transaction_to_date = '$scheme_transaction_to_date', $ben_status_field_name = '1', updated_by = '$userid', ip_address = '$ip_address' $extra $where ";
+		mysqli_query($con, $ben_query);
+		
+		
+		// Transaction data
+		
+		
+		// update transaction data
+		$data_query = "";
+		if (in_array(1, $benefit_type)){
+			
+			$check_tr_cash_query = "SELECT COUNT(*) as count FROM dbt_scheme_beneficiary_b_typewise_data WHERE scheme_id = '$schemeid' and scheme_benefit_type_id = '1' ";
+			if ($state_code == 'NULL') {
+				$check_tr_cash_query.=" and state_code is null and district_code is null";
+			}
+			elseif ($district_code == 'NULL') {
+				$check_tr_cash_query.=" and state_code = '$state_code' and district_code is null";
+			}
+			else {
+				$check_tr_cash_query.=" and state_code = '$state_code' and district_code = '$district_code'";
+			}
+			$check_tr_cash_query.=" and reporting_month = '$month' and financial_year = '$financial_year'";
+			$check_tr_cash_query = mysqli_query($con, $check_tr_cash_query);
+			$check_tr_cash_data_obj = mysqli_fetch_array($check_tr_cash_query);
+			
+			if($check_tr_cash_data_obj[0] == 0){
+				$data_query = "INSERT INTO dbt_scheme_beneficiary_b_typewise_data SET ";
+				$where="";
+				$extra=", created = '$created', scheme_id = '$schemeid', scheme_benefit_type_id = '1', state_code = $state_code, district_code = $district_code, reporting_month = '$month', financial_year = '$financial_year'";
+			} else {
+				$data_query = "UPDATE dbt_scheme_beneficiary_b_typewise_data SET ";
+				$extra="";
+				$where=" WHERE scheme_id = '$schemeid' and scheme_benefit_type_id = '1'";
+				if ($state_code == 'NULL'){
+					$where.=" and state_code is null and district_code is null and reporting_month = '$month' and financial_year = '$financial_year'";
+				} else if ($district_code == 'NULL'){
+					$where.=" and state_code = '$state_code' and district_code is null and reporting_month = '$month' and financial_year = '$financial_year'";
+				} else {
+					$where.=" and state_code = '$state_code' and district_code = '$district_code' and reporting_month = '$month' and financial_year = '$financial_year'";
+				}
+			}	
+			$data_query.=" total_fund_transferred_normative = '$total_fund_transferred_normative', fund_transferred_state_normative = '$fund_transferred_state_normative', fund_transferred_center_normative = '$fund_transferred_center_normative', total_fund_transfered_State_additional_x = '$total_fund_transfered_State_additional_x', total_fund_transfered_state_additional_y = '$total_fund_transfered_state_additional_y', total_fund_electronic_authenticated = '$total_fund_electronic_authenticated', total_fund_non_electronic_authenticated = '$total_fund_non_electronic_authenticated', no_transaction_electronic_authenticated = '$no_transaction_electronic_authenticated', no_transaction_non_electronic_authenticated = '$no_transaction_non_electronic_authenticated', unit_of_measurement = '', no_quantity = '', additional_parameter1 = '$additional_parameter1', additional_parameter2 = '$additional_parameter2', additional_parameter3 = '$additional_parameter3', scheme_transaction_from_date = '$scheme_transaction_from_date', scheme_transaction_to_date = '$scheme_transaction_to_date', b_typewise_data_status = '1', updated_by = '$userid', ip_address = '$ip_address' $extra $where";
+			mysqli_query($con, $data_query);
+		}
+		
+		if (in_array(2, $benefit_type)){
+			
+			$check_tr_kind_query = "SELECT COUNT(*) as count FROM dbt_scheme_beneficiary_b_typewise_data WHERE scheme_id = '$schemeid' and scheme_benefit_type_id = '2' ";
+			if ($state_code == 'NULL') {
+				$check_tr_kind_query.=" and state_code is null and district_code is null";
+			}
+			elseif ($district_code == 'NULL') {
+				$check_tr_kind_query.=" and state_code = '$state_code' and district_code is null";
+			}
+			else {
+				$check_tr_kind_query.=" and state_code = '$state_code' and district_code = '$district_code'";
+			}
+			$check_tr_kind_query.=" and reporting_month = '$month' and financial_year = '$financial_year'";
+			$check_tr_kind_query = mysqli_query($con, $check_tr_kind_query);
+			$check_tr_kind_data_obj = mysqli_fetch_array($check_tr_kind_query);
+			
+			if($check_tr_cash_data_obj[0] == 0){
+				$data_query_kind = "INSERT INTO dbt_scheme_beneficiary_b_typewise_data SET ";
+				$where="";
+				$extra=", created = '$created', scheme_id = '$schemeid', scheme_benefit_type_id = '2', state_code = $state_code, district_code = $district_code, reporting_month = '$month', financial_year = '$financial_year'";
+			} else {
+				$data_query_kind = "UPDATE dbt_scheme_beneficiary_b_typewise_data SET ";
+				$extra="";
+				$where=" WHERE scheme_id = '$schemeid' and scheme_benefit_type_id = '2'";
+				if ($state_code == 'NULL'){
+					$where.=" and state_code is null and district_code is null and reporting_month = '$month' and financial_year = '$financial_year'";
+				} else if ($district_code == 'NULL'){
+					$where.=" and state_code = '$state_code' and district_code is null and reporting_month = '$month' and financial_year = '$financial_year'";
+				} else {
+					$where.=" and state_code = '$state_code' and district_code = '$district_code' and reporting_month = '$month' and financial_year = '$financial_year'";
+				}
+			}
+			
+			$data_query_kind .= " total_fund_transferred_normative = '$total_expenditure_incurred_inkind', fund_transferred_state_normative = '$normative_state_share_expenditure_incurred_inkind', fund_transferred_center_normative = '$central_share_expenditure_incurred_inkind', total_fund_transfered_State_additional_x = '$additional_state_share_expenditure_incurred_inkind', total_fund_transfered_state_additional_y = '$state_share_expenditure_incurred_to_additional_beneficiaries_inkind', total_fund_electronic_authenticated = '$dbt_expenditure_incurred_inkind', total_fund_non_electronic_authenticated = '', no_transaction_electronic_authenticated = '$no_of_authenticated_transactions_inkind', no_transaction_non_electronic_authenticated = '', unit_of_measurement = '$unit_of_measurement_inkind', no_quantity = '$quantity_transferred_inkind', additional_parameter1 = '$additional_parameter1', additional_parameter2 = '$additional_parameter2', additional_parameter3 = '$additional_parameter3', scheme_transaction_from_date = '$scheme_transaction_from_date', scheme_transaction_to_date = '$scheme_transaction_to_date', b_typewise_data_status = '1', updated_by = '$userid', ip_address = '$ip_address' $extra $where";
+			mysqli_query($con, $data_query_kind);
+		}
+		
+	} // end while
+	
+} // function insert_update_webservice_data
+
+
+/*---(Web-service Validation  )----------------------------------|
+  |	 * Purpose:-Prevent data discrepancy                         |
+  |--------------------------------------------------------------|
+*/
+function generalValidation($getValue,$schemeid,$datamonth,$benefit_type,$start,$end,$servicedate,$txt,$nodalp_email,$cc_email,$scheme_code)
+{	
+        global $con;
+		$returnvalue=array();
+        $response = false;	
+		$msg_body = '';	
+		
+		$datainfo = mysqli_query($con,"SELECT sm.scheme_type_id as scheme_type, sm.scheme_code, sd.scheme_name, m.ministry_name, e.scheme_eligibility_type_id as dbt_eligibility_type FROM dbt_scheme_master as sm JOIN dbt_scheme_details as sd on sm.scheme_id = sd.scheme_id JOIN dbt_ministry_details as m on sm.ministry_id = m.ministry_id JOIN dbt_scheme_eligibility_type_relation as e on sm.scheme_id = e.scheme_id where sm.scheme_id = '".$schemeid."'");
+		
+		$datainfocount = mysqli_fetch_object($datainfo);
+	    $nodalp_email = implode(',', $nodalp_email); 
+	    $cc_email = implode(',', $cc_email); 
+		$scheme_type = $datainfocount->scheme_type; 		
+		$dbt_eligibility_type = $datainfocount->dbt_eligibility_type; 
+		$scheme_name=$datainfocount->scheme_name;
+		$ministry_name=$datainfocount->ministry_name;
+		$scheme_codification=$datainfocount->scheme_code;
+        $data_updated = date('d/m/Y h:i:s a');
+
+		$month_num = $datamonth;
+		$month_name = date("M", mktime(0, 0, 0, $month_num, 10));
+		$year_name = date("Y");
+		if(intval($month_num)<=3){$f_year= $end;} else{$f_year= $start;}
+		
+		if (count($benefit_type) == 1 && in_array(1, $benefit_type)) {
+			$benefit_type_name = "CASH";
+		} else if (count($benefit_type) == 1 && in_array(2, $benefit_type)) {
+			$benefit_type_name = "In Kind";
+		} else if (count($benefit_type) > 1 && in_array(1, $benefit_type) && in_array(2, $benefit_type)) {
+			$benefit_type_name = "Cash and In Kind";
+		} else {
+			$benefit_type_name = "";
+		}
+		
+		$unit_of_measurement_inkind_array = array();
+	    $subject = "DBT Web-service rejection alert: ".$ministry_name." (".$scheme_codification."), " . $month_name."-".$f_year; 
+		$i=1;
+		$cont=1;
+		$error_report_array=array();
+		if(!is_array($getValue['0']['general-information']['schemecode'])) {
+			$schemecode = $getValue['0']['general-information']['schemecode'];
+		} else {
+			$schemecode = '';
+		}												
+		$txt .= "Scheme Code : ".$schemecode."\n\n";
+		
+		$eligibility_check_query = mysqli_query($con, "SELECT scheme_eligibility_type_id as dbt_eligibility_type FROM dbt_scheme_eligibility_type_relation WHERE scheme_id = '".$schemeid."'");
+		$eligibility_info = mysqli_fetch_object($eligibility_check_query);
+		$dbt_eligibility_type = $eligibility_info->dbt_eligibility_type;
+		
+		
+	$comulative_no_of_beneficiaries = $comulative_no_of_beneficiaries_record_digitized = $comulative_no_of_authenticated_seeded_beneficiaries = $comulative_no_of_beneficiaries_whom_mobile_no_captured = 0;
+    foreach($getValue as $key=>$val)
+    {
+			$year = $val['scheme-progress']['year'];
+			$month = $val['scheme-progress']['month'];
+			if(isset($val['scheme-progress']['day'])){
+				$day = $val['scheme-progress']['day'];
+			} else {
+				$day = '';
+			}
+			
+			if(intval($month) < 10){
+				$month = '0'.intval($month);
+			}
+			if(isset($val['location']['district_code'])){
+				$district_code = $val['location']['district_code'];
+			} else {
+				$district_code = '';
+			}
+			if(isset($val['location']['district_name'])){
+				$district_name = $val['location']['district_name'];
+			} else {
+				$district_name = '';
+			}			
+			$state_code = $val['location']['state_code'];
+			$state_name = $val['location']['state_name'];
+			
+			//beneficiary-details
+			$beneficiary_type = '';
+			$number_of_groups_shg = '';
+			if($dbt_eligibility_type == 4){
+				if(isset($val['beneficiary-details']['beneficiary_type']) && !is_array($val['beneficiary-details']['beneficiary_type'])){
+					$beneficiary_type = $val['beneficiary-details']['beneficiary_type'];
+				}
+				if(isset($val['beneficiary-details']['number_of_groups_shg']) && !is_array($val['beneficiary-details']['number_of_groups_shg'])){
+					$number_of_groups_shg = $val['beneficiary-details']['number_of_groups_shg'];
+				}
+			}
+			if(!is_array($val['beneficiary-details']['no_of_beneficiaries_normative_central_and_state_share'])){
+				$no_of_beneficiaries_normative_central_and_state_share = $val['beneficiary-details']['no_of_beneficiaries_normative_central_and_state_share'];
+			} else {
+				$no_of_beneficiaries_normative_central_and_state_share = '';
+			}
+			if(!is_array($val['beneficiary-details']['no_of_additional_beneficiaries_supported_by_state'])){
+				$no_of_additional_beneficiaries_supported_by_state = $val['beneficiary-details']['no_of_additional_beneficiaries_supported_by_state'];
+			} else {
+				$no_of_additional_beneficiaries_supported_by_state = '';
+			}
+			if(!is_array($val['beneficiary-details']['total_no_of_beneficiaries'])){
+				$total_no_of_beneficiaries = $val['beneficiary-details']['total_no_of_beneficiaries'];
+				$comulative_no_of_beneficiaries += $total_no_of_beneficiaries;
+			} else {
+				$total_no_of_beneficiaries = '';
+			}
+			if(!is_array($val['beneficiary-details']['no_of_beneficiaries_record_digitized'])){
+				$no_of_beneficiaries_record_digitized = $val['beneficiary-details']['no_of_beneficiaries_record_digitized'];
+				$comulative_no_of_beneficiaries_record_digitized += $no_of_beneficiaries_record_digitized;
+			} else {
+				$no_of_beneficiaries_record_digitized = '';
+			}
+			if(!is_array($val['beneficiary-details']['no_of_authenticated_seeded_beneficiaries'])){
+				$no_of_authenticated_seeded_beneficiaries = $val['beneficiary-details']['no_of_authenticated_seeded_beneficiaries'];
+				$comulative_no_of_authenticated_seeded_beneficiaries += $no_of_authenticated_seeded_beneficiaries;
+			} else {
+				$no_of_authenticated_seeded_beneficiaries = '';
+			}
+			if(!is_array($val['beneficiary-details']['no_of_beneficiaries_whom_mobile_no_captured'])){
+				$no_of_beneficiaries_whom_mobile_no_captured = $val['beneficiary-details']['no_of_beneficiaries_whom_mobile_no_captured'];
+				$comulative_no_of_beneficiaries_whom_mobile_no_captured += $no_of_beneficiaries_whom_mobile_no_captured;
+			} else {
+				$no_of_beneficiaries_whom_mobile_no_captured = '';
+			}			
+			
+			//fundtransfer-details
+			if(in_array(1, $benefit_type)){
+				if(!is_array($val['fundtransfer-details']['central_share_fund_transferred_cash'])){
+					$central_share_fund_transferred_cash = $val['fundtransfer-details']['central_share_fund_transferred_cash'];
+				} else {
+					$central_share_fund_transferred_cash = '';
+				}
+				if(!is_array($val['fundtransfer-details']['normative_state_share_fund_transferred_cash'])){
+					$normative_state_share_fund_transferred_cash = $val['fundtransfer-details']['normative_state_share_fund_transferred_cash'];
+				} else {
+					$normative_state_share_fund_transferred_cash = '';
+				}
+				if(!is_array($val['fundtransfer-details']['additional_state_share_fund_transferred_cash'])){
+					$additional_state_share_fund_transferred_cash = $val['fundtransfer-details']['additional_state_share_fund_transferred_cash'];
+				} else {
+					$additional_state_share_fund_transferred_cash = '';
+				}
+				if(!is_array($val['fundtransfer-details']['total_fund_transferred_cash'])){
+					$total_fund_transferred_cash = $val['fundtransfer-details']['total_fund_transferred_cash'];
+				} else {
+					$total_fund_transferred_cash = '';
+				}
+				if(!is_array($val['fundtransfer-details']['state_share_fund_transferred_to_additional_beneficiaries_cash'])){
+					$state_share_fund_transferred_to_additional_beneficiaries_cash = $val['fundtransfer-details']['state_share_fund_transferred_to_additional_beneficiaries_cash'];
+				} else {
+					$state_share_fund_transferred_to_additional_beneficiaries_cash = '';
+				}
+			}
+			
+			//inkind in fundtransfer details
+			if(in_array(2, $benefit_type)){
+				if(!is_array($val['fundtransfer-details']['central_share_expenditure_incurred_inkind'])){
+					$central_share_expenditure_incurred_inkind = $val['fundtransfer-details']['central_share_expenditure_incurred_inkind'];
+				} else {
+					$central_share_expenditure_incurred_inkind = '';
+				}
+				if(!is_array($val['fundtransfer-details']['normative_state_share_expenditure_incurred_inkind'])){
+					$normative_state_share_expenditure_incurred_inkind = $val['fundtransfer-details']['normative_state_share_expenditure_incurred_inkind'];
+				} else {
+					$normative_state_share_expenditure_incurred_inkind = '';
+				}
+				/* if(!is_array($val['transaction-details']['total_no_transactions'])){
+					$total_no_transactions = $val['transaction-details']['total_no_transactions'];
+				} else {
+					$total_no_transactions = '';
+				} */
+				if(!is_array($val['fundtransfer-details']['additional_state_share_expenditure_incurred_inkind'])){
+					$additional_state_share_expenditure_incurred_inkind = $val['fundtransfer-details']['additional_state_share_expenditure_incurred_inkind'];
+				} else {
+					$additional_state_share_expenditure_incurred_inkind = '';
+				}
+				if(!is_array($val['fundtransfer-details']['state_share_expenditure_incurred_to_additional_beneficiaries_inkind'])){
+					$state_share_expenditure_incurred_to_additional_beneficiaries_inkind = $val['fundtransfer-details']['state_share_expenditure_incurred_to_additional_beneficiaries_inkind'];
+				} else {
+					$state_share_expenditure_incurred_to_additional_beneficiaries_inkind = '';
+				}
+				if(!is_array($val['fundtransfer-details']['total_expenditure_incurred_inkind'])){
+					$total_expenditure_incurred_inkind = $val['fundtransfer-details']['total_expenditure_incurred_inkind'];
+				} else {
+					$total_expenditure_incurred_inkind = '';
+				}
+				//$manual_tansaction = $total_no_transactions - $no_of_authenticated_transactions;
+			}
+
+			//transaction-details
+			if(in_array(1, $benefit_type)){
+				if(!is_array($val['transaction-details']['total_no_transactions_electronic_modes_cash'])){
+					$total_no_transactions_electronic_modes_cash = $val['transaction-details']['total_no_transactions_electronic_modes_cash'];
+				} else {
+					$total_no_transactions_electronic_modes_cash = '';
+				}
+				if(!is_array($val['transaction-details']['payment_electronic_modes_cash'])){
+					$payment_electronic_modes_cash = $val['transaction-details']['payment_electronic_modes_cash'];
+				} else {
+					$payment_electronic_modes_cash = '';
+				}
+				
+				if(!is_array($val['transaction-details']['total_no_transactions_other_modes_cash'])){
+					$total_no_transactions_other_modes_cash = $val['transaction-details']['total_no_transactions_other_modes_cash'];
+				} else {
+					$total_no_transactions_other_modes_cash = '';
+				}
+				if(!is_array($val['transaction-details']['payment_other_modes_cash'])){
+					$payment_other_modes_cash = $val['transaction-details']['payment_other_modes_cash'];
+				} else {
+					$payment_other_modes_cash = '';
+				}
+			}
+			if(in_array(2, $benefit_type)){
+				if(isset($val['transaction-details']['unit_of_measurement_inkind'])) {
+					if(!is_array($val['transaction-details']['unit_of_measurement_inkind']) && $dbt_eligibility_type != 4){
+						$unit_of_measurement_inkind = $val['transaction-details']['unit_of_measurement_inkind'];
+					} else {
+						$unit_of_measurement_inkind = '';
+					}
+				} else {
+					$unit_of_measurement_inkind = '';
+				}
+				if($unit_of_measurement_inkind!='' && !in_array($unit_of_measurement_inkind, $unit_of_measurement_inkind_array)){
+					array_push($unit_of_measurement_inkind_array, $unit_of_measurement_inkind);
+				}
+				
+				if(isset($val['transaction-details']['quantity_transferred_inkind'])){
+					if(!is_array($val['transaction-details']['quantity_transferred_inkind']) && $dbt_eligibility_type != 4){
+						$quantity_transferred_inkind = $val['transaction-details']['quantity_transferred_inkind'];
+					} else {
+						$quantity_transferred_inkind = '';
+					}
+				} else {
+					$quantity_transferred_inkind = '';
+				}
+				/* if(!is_array($val['transaction-details']['total_no_transactions'])){
+					$total_no_transactions = $val['transaction-details']['total_no_transactions'];
+				} else {
+					$total_no_transactions = '';
+				} */
+				if(!is_array($val['transaction-details']['no_of_authenticated_transactions_inkind'])){
+					$no_of_authenticated_transactions_inkind = $val['transaction-details']['no_of_authenticated_transactions_inkind'];
+				} else {
+					$no_of_authenticated_transactions_inkind = '';
+				}
+				if(!is_array($val['transaction-details']['dbt_expenditure_incurred_inkind']) && $dbt_eligibility_type == 4){
+					$dbt_expenditure_incurred_inkind = $total_expenditure_incurred_inkind;
+				} else if(!is_array($val['transaction-details']['dbt_expenditure_incurred_inkind'])){
+					$dbt_expenditure_incurred_inkind = $val['transaction-details']['dbt_expenditure_incurred_inkind'];
+				} else {
+					$dbt_expenditure_incurred_inkind = '';
+				}
+				//$manual_tansaction = $total_no_transactions - $no_of_authenticated_transactions;
+			}											
+			$txt .= "#".$i."\n";
+			$txt .= "Year : ".$year."\n";
+			$txt .= "Month : ".$month."\n";
+			if(isset($val['scheme-progress']['day']))
+			{
+			$txt .= "Day : ".$day."\n";
+			}
+			if(isset($val['location']['district_code']))
+			{
+			$txt .= "District code : ".$district_code."\n";
+			}
+			if(isset($val['location']['district_name']))
+			{
+			$txt .= "District name : ".$district_name."\n";
+			}
+			$txt .= "State Code : ".$state_code."\n";
+			$txt .= "State Name : ".$state_name."\n\n";
+		
+			if($dbt_eligibility_type == 4){
+				$txt .= "Beneficiary Type : ".$beneficiary_type."\n";
+				$txt .= "No of Groups SHG : ".$number_of_groups_shg."\n";
+			}
+			$txt .= "No of Beneficiaries Normative Central and State Share : ".$no_of_beneficiaries_normative_central_and_state_share."\n";
+			$txt .= "No of Additional Beneficiaries Supported by State : ".$no_of_additional_beneficiaries_supported_by_state."\n";
+			$txt .= "Total No of Beneficiaries : ".$total_no_of_beneficiaries."\n";
+			$txt .= "No of Beneficiaries Record Digitized : ".$no_of_beneficiaries_record_digitized."\n";
+			$txt .= "No of Authenticated Seeded Beneficiaries Record : ".$no_of_authenticated_seeded_beneficiaries."\n";
+			$txt .= "No of Beneficiaries Whom Mobile no. Captured : ".$no_of_beneficiaries_whom_mobile_no_captured."\n\n";
+			
+			if(in_array(1, $benefit_type)){
+				$txt .= "Central Share Fund Transferred cash: ".$central_share_fund_transferred_cash."\n";
+				$txt .= "Normative State Share Fund Transferred cash : ".$normative_state_share_fund_transferred_cash."\n";
+				$txt .= "Additional State Share Fund Transferred cash : ".$additional_state_share_fund_transferred_cash."\n";
+				$txt .= "Total Fund Transferred cash : ".$total_fund_transferred_cash."\n";
+				$txt .= "State Share Fund Transferred To Additional Beneficiaries cash : ".$state_share_fund_transferred_to_additional_beneficiaries_cash."\n\n";
+				$txt .= "Total No. Transactions Electronic Modes cash : ".$total_no_transactions_electronic_modes_cash."\n";
+				$txt .= "Payment Electronic Modes cash : ".$payment_electronic_modes_cash."\n";
+				$txt .= "Total No. Transactions Other Modes cash: ".$total_no_transactions_other_modes_cash."\n";
+				$txt .= "Payment Other Modes cash : ".$payment_other_modes_cash."\n\n";
+			}
+			if(in_array(2, $benefit_type)){
+				$txt .= "Central share expenditure incurred inkind : ".$central_share_expenditure_incurred_inkind."\n";
+				$txt .= "Normative state share expenditure incurred inkind : ".$normative_state_share_expenditure_incurred_inkind."\n";
+				$txt .= "Additional state share expenditure incurred inkind: ".$additional_state_share_expenditure_incurred_inkind."\n";
+				$txt .= "State share expenditure incurred to additional beneficiaries inkind: ".$state_share_expenditure_incurred_to_additional_beneficiaries_inkind."\n";
+				$txt .= "Total expenditure incurred inkind: ".$total_expenditure_incurred_inkind."\n\n";
+				$txt .= "Unit of Measurement inkind : ".$unit_of_measurement_inkind."\n";
+				$txt .= "Quantity Transferred inkind : ".$quantity_transferred_inkind."\n";
+				$txt .= "Total No. Authenticated Transactions : ".$no_of_authenticated_transactions_inkind."\n";
+				$txt .= "Dbt expenditure incurred inkind : ".$dbt_expenditure_incurred_inkind."\n";
+			}
+			
+			//additional parameter start
+			$additional_parameter1 = '';
+			$additional_parameter2 = '';
+			$additional_parameter3 = '';
+			if(isset($val['additional-parameters']['additional_parameter1']) && !is_array($val['additional-parameters']['additional_parameter1'])) {
+				$additional_parameter1 = $val['additional-parameters']['additional_parameter1'];
+				$txt .= "Additional Parameter1 : ".$additional_parameter1."\n";
+				// $total_additional_parameter1 = $total_additional_parameter1 + $additional_parameter1;
+			} 
+			if(isset($val['additional-parameters']['additional_parameter2']) && !is_array($val['additional-parameters']['additional_parameter2'])) {
+				$additional_parameter2 = $val['additional-parameters']['additional_parameter2'];
+				$txt .= "Additional Parameter2 : ".$additional_parameter2."\n";
+				// $total_additional_parameter2 = $total_additional_parameter2 + $additional_parameter2;
+			}
+			if(isset($val['additional-parameters']['additional_parameter3']) && !is_array($val['additional-parameters']['additional_parameter3'])) {
+				$additional_parameter3 = $val['additional-parameters']['additional_parameter3'];
+				$txt .= "Additional Parameter3 : ".$additional_parameter3."\n";
+				// $total_additional_parameter3 = $total_additional_parameter3 + $additional_parameter3;
+			}
+			//additional parameter end
+			
+			$txt .= "------------------\n\n";
+	//-----------------------------------------------------------------------------------------------------------------------  
+		if(in_array(1, $benefit_type)){
+			$sum_fund_transferred_cash=trim(($val['fundtransfer-details']['central_share_fund_transferred_cash']) ? $val['fundtransfer-details']['central_share_fund_transferred_cash'] : 0)+trim(($val['fundtransfer-details']['normative_state_share_fund_transferred_cash']) ? $val['fundtransfer-details']['normative_state_share_fund_transferred_cash'] : 0)+trim(($val['fundtransfer-details']['additional_state_share_fund_transferred_cash']) ? $val['fundtransfer-details']['additional_state_share_fund_transferred_cash'] : 0)+trim(($val['fundtransfer-details']['state_share_fund_transferred_to_additional_beneficiaries_cash']) ? $val['fundtransfer-details']['state_share_fund_transferred_to_additional_beneficiaries_cash'] : 0);
+		}
+		if(in_array(2, $benefit_type)){
+			$sum_expenditure_incurred_inkind =trim(($val['fundtransfer-details']['central_share_expenditure_incurred_inkind']) ? $val['fundtransfer-details']['central_share_expenditure_incurred_inkind'] : 0)+trim(($val['fundtransfer-details']['normative_state_share_expenditure_incurred_inkind']) ? $val['fundtransfer-details']['normative_state_share_expenditure_incurred_inkind'] : 0)+trim(($val['fundtransfer-details']['additional_state_share_expenditure_incurred_inkind']) ? $val['fundtransfer-details']['additional_state_share_expenditure_incurred_inkind'] : 0)+trim(($val['fundtransfer-details']['state_share_expenditure_incurred_to_additional_beneficiaries_inkind']) ? $val['fundtransfer-details']['state_share_expenditure_incurred_to_additional_beneficiaries_inkind'] : 0);	
+		}
+		
+		if(in_array(1, $benefit_type)){
+			$sum_payment_cash=trim(($val['transaction-details']['payment_electronic_modes_cash']) ? $val['transaction-details']['payment_electronic_modes_cash'] : 0)+trim(($val['transaction-details']['payment_other_modes_cash']) ? $val['transaction-details']['payment_other_modes_cash'] : 0);
+		}
+			$sum_beneficiaries=trim(($val['beneficiary-details']['no_of_beneficiaries_normative_central_and_state_share']) ? $val['beneficiary-details']['no_of_beneficiaries_normative_central_and_state_share'] : 0)+trim(($val['beneficiary-details']['no_of_additional_beneficiaries_supported_by_state']) ? $val['beneficiary-details']['no_of_additional_beneficiaries_supported_by_state'] : 0);
+			
+			$error_report_array[$val['location']['state_code']]=array(
+						'state_code'=>$val['location']['state_code'],
+						'state_name'=>$val['location']['state_name'],
+						'district_code'=>$district_code,
+						'district_name'=>$district_name
+						);
+			$error_report_array[$val['location']['state_code']]['error']=array();	
+		//vali-1(beneficiary-details)------------------------------------------------------------
+		
+			if($val['general-information']['schemecode'] != $scheme_code) 
+			{
+				$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+				'label'=>'Scheme Code : '.(empty($val['general-information']['schemecode']) ? '': $val['general-information']['schemecode']),
+				'values'=>'Scheme code not matched with requested scheme code.',
+				);
+			}
+			
+			if(($val['beneficiary-details']['total_no_of_beneficiaries']<0) || (!is_numeric(trim($val['beneficiary-details']['total_no_of_beneficiaries'])))) 
+			{
+				$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+				'label'=>'Total no of beneficiaries : '.(empty($val['beneficiary-details']['total_no_of_beneficiaries']) ? '': $val['beneficiary-details']['total_no_of_beneficiaries']),
+				'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+				);
+			}
+			if(($val['beneficiary-details']['no_of_beneficiaries_record_digitized']<0) || (!is_numeric(trim($val['beneficiary-details']['no_of_beneficiaries_record_digitized'])))) 
+			{
+				$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+				'label'=>'No. of beneficiaries record digitized : '.(empty($val['beneficiary-details']['no_of_beneficiaries_record_digitized']) ? '': $val['beneficiary-details']['no_of_beneficiaries_record_digitized']),
+				'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+				);
+			}
+			if(($val['beneficiary-details']['no_of_authenticated_seeded_beneficiaries']<0) || (!is_numeric(trim($val['beneficiary-details']['no_of_authenticated_seeded_beneficiaries'])))) 
+			{
+				$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+				'label'=>'No. of authenticated seeded beneficiaries : '.(empty($val['beneficiary-details']['no_of_authenticated_seeded_beneficiaries']) ? '': $val['beneficiary-details']['no_of_authenticated_seeded_beneficiaries']),
+				'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+				);
+			}
+			
+			if(($val['beneficiary-details']['no_of_beneficiaries_whom_mobile_no_captured']<0) || (!is_numeric(trim($val['beneficiary-details']['no_of_beneficiaries_whom_mobile_no_captured'])))) 
+			{
+				$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+				'label'=>'No. of beneficiaries whom mobile no captured : '.(empty($val['beneficiary-details']['no_of_beneficiaries_whom_mobile_no_captured']) ? '': $val['beneficiary-details']['no_of_beneficiaries_whom_mobile_no_captured']),
+				'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+				);
+			}
+			
+			if(intval(trim($val['beneficiary-details']['no_of_beneficiaries_record_digitized'])) > (intval(trim($val['beneficiary-details']['total_no_of_beneficiaries']))))
+			{		
+				$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+				'label'=>'Total no of beneficiaries : '.((trim($val['beneficiary-details']['total_no_of_beneficiaries'])=='') ? '': $val['beneficiary-details']['total_no_of_beneficiaries']) .' >= '.((trim($val['beneficiary-details']['no_of_beneficiaries_record_digitized'])=='') ? '': $val['beneficiary-details']['no_of_beneficiaries_record_digitized']),
+				'values'=>'Total number of beneficiaries should be greater than or equal to number of beneficiary records digitized',
+				);						
+			}		
+			if(intval(trim($val['beneficiary-details']['no_of_authenticated_seeded_beneficiaries']) )> (intval(trim($val['beneficiary-details']['no_of_beneficiaries_record_digitized']))))
+			{											
+				$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+				'label'=>'No. of beneficiaries record digitized : '.((trim($val['beneficiary-details']['no_of_beneficiaries_record_digitized'])=='') ? '': $val['beneficiary-details']['no_of_beneficiaries_record_digitized']).' >= '.((trim($val['beneficiary-details']['no_of_authenticated_seeded_beneficiaries'])=='') ? '': $val['beneficiary-details']['no_of_authenticated_seeded_beneficiaries']),
+				'values'=>'Number of beneficiary records digitized should be greater than or equal to number of authenticated seeded beneficiaries',
+				);												
+			}		
+			if(intval(trim(($val['beneficiary-details']['no_of_beneficiaries_whom_mobile_no_captured']) ? $val['beneficiary-details']['no_of_beneficiaries_whom_mobile_no_captured'] : '')) > (intval(trim(($val['beneficiary-details']['total_no_of_beneficiaries']) ? $val['beneficiary-details']['total_no_of_beneficiaries'] : ''))))
+			{											
+				$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+				'label'=>'Total number of beneficiaries : '.((trim($val['beneficiary-details']['total_no_of_beneficiaries'])=='') ? '': $val['beneficiary-details']['total_no_of_beneficiaries']).' >= '.((trim($val['beneficiary-details']['no_of_beneficiaries_whom_mobile_no_captured'])=='') ? '': $val['beneficiary-details']['no_of_beneficiaries_whom_mobile_no_captured']),
+				'values'=>'Total number of beneficiaries should be greater than or equal to number of beneficiaries of whom mobile number has been captured',
+				);							
+			}
+		
+	   if($scheme_type==2)
+	    {
+			if(($val['beneficiary-details']['no_of_beneficiaries_normative_central_and_state_share']<0) || (!is_numeric(trim($val['beneficiary-details']['no_of_beneficiaries_normative_central_and_state_share'])))) 
+			{
+			$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			'label'=>'No. of beneficiaries normative central and_state share : '.(empty($val['beneficiary-details']['no_of_beneficiaries_normative_central_and_state_share']) ? '': $val['beneficiary-details']['no_of_beneficiaries_normative_central_and_state_share']),
+			'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+			);
+			}
+			
+			if(($val['beneficiary-details']['no_of_additional_beneficiaries_supported_by_state']<0) || (!is_numeric(trim($val['beneficiary-details']['no_of_additional_beneficiaries_supported_by_state'])))) 
+			{
+				$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+				'label'=>'No. of additional beneficiaries supported by state : '.(empty($val['beneficiary-details']['no_of_additional_beneficiaries_supported_by_state']) ? '': $val['beneficiary-details']['no_of_additional_beneficiaries_supported_by_state']),
+				'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+				);
+			}
+			if($val['beneficiary-details']['total_no_of_beneficiaries']!=$sum_beneficiaries ) 
+			{
+				$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+				'label'=>'Total no of beneficiaries : '.((trim($val['beneficiary-details']['total_no_of_beneficiaries'])=='') ? '':$val['beneficiary-details']['total_no_of_beneficiaries']).' &#8800; '.((trim($val['beneficiary-details']['no_of_beneficiaries_normative_central_and_state_share'])=='') ? '': $val['beneficiary-details']['no_of_beneficiaries_normative_central_and_state_share']).' + '.((trim($val['beneficiary-details']['no_of_additional_beneficiaries_supported_by_state'])=='') ? '':$val['beneficiary-details']['no_of_additional_beneficiaries_supported_by_state']),
+				'values'=>'Total number of beneficiaries should be equal to the sum of beneficiaries through normative Central and State share + Additional beneficiaries supported by State',
+				);		
+			}
+
+		}	 
+	//vali-1(fundtransfer-details for cs)---------------------------------------------------
+	   if($scheme_type==1)
+	    {   
+           if(count($benefit_type) == 1 && in_array(1, $benefit_type))
+	        {   		
+				if($val['fundtransfer-details']['total_fund_transferred_cash']<0 || (!is_numeric(trim($val['fundtransfer-details']['total_fund_transferred_cash']))))
+				{											
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Total fund transferred  : = '.((trim($val['fundtransfer-details']['total_fund_transferred_cash'])=='') ? '': $val['fundtransfer-details']['total_fund_transferred_cash']),
+			        'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+			        );			
+				}				
+				if($val['fundtransfer-details']['central_share_fund_transferred_cash']<0)
+				{											
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Central share fund transferred  : = '.((trim($val['fundtransfer-details']['central_share_fund_transferred_cash'])=='') ? '': $val['fundtransfer-details']['central_share_fund_transferred_cash']),
+			        'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+			        );			
+				}				
+				if($val['transaction-details']['total_no_transactions_electronic_modes_cash']<0)
+				{											
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Total no transactions electronic modes  : = '.((trim($val['transaction-details']['total_no_transactions_electronic_modes_cash'])=='') ? '': $val['transaction-details']['total_no_transactions_electronic_modes_cash']),
+			        'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed ',
+			        );			
+				}
+				if($val['transaction-details']['payment_electronic_modes_cash']<0)
+				{											
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Payment electronic modes  : = '.((trim($val['transaction-details']['payment_electronic_modes_cash'])=='') ? '': $val['transaction-details']['payment_electronic_modes_cash']),
+			        'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed ',
+			        );			
+				}					
+				if($val['transaction-details']['total_no_transactions_other_modes_cash']<0)
+				{											
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Total no transactions other modes  : = '.((trim($val['transaction-details']['total_no_transactions_other_modes_cash'])=='') ? '': $val['transaction-details']['total_no_transactions_other_modes_cash']),
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed  ',
+			        );			
+				} else if(is_array($val['transaction-details']['total_no_transactions_other_modes_cash'])) {
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Total no transactions other modes  :',
+			        'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed  ',
+			        );
+				}					
+				if($val['transaction-details']['payment_other_modes_cash']<0)
+				{											
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Payment other modes  : = '.((trim($val['transaction-details']['payment_other_modes_cash'])=='') ? '': $val['transaction-details']['payment_other_modes_cash']),
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			        );			
+				}	
+               if($val['fundtransfer-details']['total_fund_transferred_cash']!=$sum_payment_cash)
+		        {		
+                     $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Total fund transferred  : '.((trim($val['fundtransfer-details']['total_fund_transferred_cash'])=='') ? '':$val['fundtransfer-details']['total_fund_transferred_cash']).' &#8800; '.((trim($val['transaction-details']['payment_electronic_modes_cash'])=='') ? '': $val['transaction-details']['payment_electronic_modes_cash']).' + '.((trim($val['transaction-details']['payment_other_modes_cash'])=='') ? '':$val['transaction-details']['payment_other_modes_cash']),
+			        'values'=>'Total fund transferred should be equal to the sum of payments through Electronic modes + Non-electronic modes',
+			        );				
+		        }				
+		    }
+           if(count($benefit_type) == 1 && in_array(2, $benefit_type))	
+            { 				
+				if(($val['fundtransfer-details']['total_expenditure_incurred_inkind']<0) || (!is_numeric(trim($val['fundtransfer-details']['total_expenditure_incurred_inkind']))))
+				{											
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>' Total expenditure incurred  : = '.((trim($val['fundtransfer-details']['total_expenditure_incurred_inkind'])=='') ? '': $val['fundtransfer-details']['total_expenditure_incurred_inkind']),
+			       'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+			        ); 				
+		        }									
+               if($val['fundtransfer-details']['central_share_expenditure_incurred_inkind']<0)
+				{											
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>' Central share expenditure incurred : = '.((trim($val['fundtransfer-details']['central_share_expenditure_incurred_inkind'])=='') ? '': $val['fundtransfer-details']['central_share_expenditure_incurred_inkind']),
+			       'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			        ); 				
+		        }				
+				if($val['transaction-details']['dbt_expenditure_incurred_inkind']<0)
+				{		
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'DBT expenditure incurred : = '.((trim($val['transaction-details']['dbt_expenditure_incurred_inkind'])=='') ? '': $val['transaction-details']['dbt_expenditure_incurred_inkind']),
+			       'values'=>'Should not be negative(-ve) ',
+			         );	 				
+		        }						
+			   if(trim($val['transaction-details']['dbt_expenditure_incurred_inkind'])>trim($val['fundtransfer-details']['total_expenditure_incurred_inkind']))
+		        {		
+			
+				   				   				   
+				   $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'DBT expenditure incurred : '.((trim($val['transaction-details']['dbt_expenditure_incurred_inkind'])=='') ? '':$val['transaction-details']['dbt_expenditure_incurred_inkind']).' <= '.((trim($val['fundtransfer-details']['total_expenditure_incurred_inkind'])=='') ? '':$val['fundtransfer-details']['total_expenditure_incurred_inkind']),
+				   
+			       'values'=>'DBT expenditure incurred should be less than or equal to total expenditure incurred ',
+			        );				   				 				
+		        } 			
+		    }
+		   if(count($benefit_type) > 1 && in_array(1, $benefit_type) && in_array(2, $benefit_type))	
+            { 		
+				if(($val['fundtransfer-details']['total_fund_transferred_cash']<0) || (!is_numeric(trim($val['fundtransfer-details']['total_fund_transferred_cash']))))
+				{											
+				
+				    $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>' Total fund transferred : = '.((trim($val['fundtransfer-details']['total_fund_transferred_cash'])=='') ? '': $val['fundtransfer-details']['total_fund_transferred_cash']),
+			        'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+			        );				
+				}					
+				if($val['fundtransfer-details']['central_share_fund_transferred_cash']<0)
+				{											
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Central share fund transferred : = '.((trim($val['fundtransfer-details']['central_share_fund_transferred_cash'])=='') ? '': $val['fundtransfer-details']['central_share_fund_transferred_cash']),
+			        'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+			        );			
+				}				
+				if($val['fundtransfer-details']['central_share_expenditure_incurred_inkind']<0)
+				{											
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Central share expenditure incurred : = '.((trim($val['fundtransfer-details']['central_share_expenditure_incurred_inkind'])=='') ? '': $val['fundtransfer-details']['central_share_expenditure_incurred_inkind']),
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			        );			
+				}
+                if(($val['fundtransfer-details']['total_expenditure_incurred_inkind']<0) || (!is_numeric(trim($val['fundtransfer-details']['total_expenditure_incurred_inkind']))))
+				{		
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'Total expenditure incurred : = '.(empty($val['fundtransfer-details']['total_expenditure_incurred_inkind']) ? '':$val['fundtransfer-details']['total_expenditure_incurred_inkind']),
+			       'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+			         );	 				
+		        }
+               if($val['transaction-details']['total_no_transactions_electronic_modes_cash']<0)
+				{		
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'Total no transactions electronic modes : = '.((trim($val['transaction-details']['total_no_transactions_electronic_modes_cash'])=='') ? '': $val['transaction-details']['total_no_transactions_electronic_modes_cash']),
+			       'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			         );	 				
+		        }
+                if($val['fundtransfer-details']['total_fund_transferred_cash']!=$sum_payment_cash)
+		        {
+                     $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Total fund transferred : '.((trim($val['fundtransfer-details']['total_fund_transferred_cash'])=='') ? '':$val['fundtransfer-details']['total_fund_transferred_cash']).' &#8800; '.((trim($val['transaction-details']['payment_electronic_modes_cash'])=='') ? '': $val['transaction-details']['payment_electronic_modes_cash']).' + '.((trim($val['transaction-details']['payment_other_modes_cash'])=='') ? '':$val['transaction-details']['payment_other_modes_cash']),
+			        'values'=>'Total fund transferred should be equal to the sum of payments through Electronic modes + Non-electronic modes',
+			        );				
+		        }					
+               if($val['transaction-details']['payment_electronic_modes_cash']<0)
+				{		
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'Payment electronic modes : = '.((trim($val['transaction-details']['payment_electronic_modes_cash'])=='') ? '': $val['transaction-details']['payment_electronic_modes_cash']),
+			       'values'=>'Should not be negative(-ve)',
+			         );	 				
+		        }									
+               if($val['transaction-details']['total_no_transactions_other_modes_cash']<0)
+				{		
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'Total no transactions other modes : = '.((trim($val['transaction-details']['total_no_transactions_other_modes_cash'])=='') ? '': $val['transaction-details']['total_no_transactions_other_modes_cash']),
+			       'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			         );	 				
+		        }					
+               if($val['transaction-details']['payment_other_modes_cash']<0)
+				{		
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'Payment other modes : = '.((trim($val['transaction-details']['payment_other_modes_cash'])=='') ? '': $val['transaction-details']['payment_other_modes_cash']),
+			       'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed ',
+			         );	 				
+		        }					
+               if($val['transaction-details']['dbt_expenditure_incurred_inkind']<0)
+				{		
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'DBT expenditure incurred : = '.((trim($val['transaction-details']['dbt_expenditure_incurred_inkind'])=='') ? '': $val['transaction-details']['dbt_expenditure_incurred_inkind']),
+			       'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			         );	 				
+		        }
+				
+			   if(trim($val['transaction-details']['dbt_expenditure_incurred_inkind'])>trim($val['fundtransfer-details']['total_expenditure_incurred_inkind']))
+		        {		
+			
+				   				   				   
+				   $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'DBT expenditure incurred : '.((trim($val['transaction-details']['dbt_expenditure_incurred_inkind'])=='') ? '':$val['transaction-details']['dbt_expenditure_incurred_inkind']).' <= '.((trim($val['fundtransfer-details']['total_expenditure_incurred_inkind'])=='') ? '':$val['fundtransfer-details']['total_expenditure_incurred_inkind']),
+				   
+			       'values'=>'DBT expenditure incurred should be less than or equal to total expenditure incurred ',
+			        );				   				 				
+		        } 						
+            }				
+		}
+
+       if($scheme_type==2)	
+	    {	
+           if(count($benefit_type) == 1 && in_array(1, $benefit_type))
+	        {   			
+				if(($val['fundtransfer-details']['total_fund_transferred_cash']<0) || (!is_numeric(trim($val['fundtransfer-details']['total_fund_transferred_cash']))))
+				{											
+			       $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'Total fund transferred : = '.((trim($val['fundtransfer-details']['total_fund_transferred_cash'])=='') ? '': $val['fundtransfer-details']['total_fund_transferred_cash']),
+				   
+			       'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+			        );									
+				}							
+				if($val['fundtransfer-details']['central_share_fund_transferred_cash']<0)
+				{											
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Central share fund transferred = '.((trim($val['fundtransfer-details']['central_share_fund_transferred_cash'])=='') ? '': $val['fundtransfer-details']['central_share_fund_transferred_cash']),
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			        );			
+				}						
+				if($val['fundtransfer-details']['normative_state_share_fund_transferred_cash']<0)
+				{											
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Normative state share fund transferred = '.((trim($val['fundtransfer-details']['normative_state_share_fund_transferred_cash'])=='') ? '': $val['fundtransfer-details']['normative_state_share_fund_transferred_cash']),
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			        );			
+				}						
+				if($val['fundtransfer-details']['additional_state_share_fund_transferred_cash']<0)
+				{											
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Additional state share fund transferred = '.((trim($val['fundtransfer-details']['additional_state_share_fund_transferred_cash'])=='') ? '': $val['fundtransfer-details']['additional_state_share_fund_transferred_cash']),
+			        'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+			        );			
+				}										
+				if($val['fundtransfer-details']['state_share_fund_transferred_to_additional_beneficiaries_cash']<0)
+				{											
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'State share fund transferred to additional beneficiaries = '.((trim($val['fundtransfer-details']['state_share_fund_transferred_to_additional_beneficiaries_cash'])=='') ? '': $val['fundtransfer-details']['state_share_fund_transferred_to_additional_beneficiaries_cash']),
+			        'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+			        );			
+				}
+				
+                if($val['fundtransfer-details']['total_fund_transferred_cash']!=$sum_payment_cash)
+		        {				
+                     $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Total fund transferred : '.((trim($val['fundtransfer-details']['total_fund_transferred_cash'])=='') ? '':$val['fundtransfer-details']['total_fund_transferred_cash']).' &#8800; '.((trim($val['transaction-details']['payment_electronic_modes_cash'])=='') ? '': $val['transaction-details']['payment_electronic_modes_cash']).' + '.((trim($val['transaction-details']['payment_other_modes_cash'])=='') ? '':$val['transaction-details']['payment_other_modes_cash']),
+			        'values'=>'Total fund transferred should be equal to the sum of payments through Electronic modes + Non-electronic modes',
+			        );				
+		        }						
+				
+		    }
+			if(count($benefit_type) == 1 && in_array(2, $benefit_type))	
+            { 		
+				if(($val['fundtransfer-details']['total_expenditure_incurred_inkind']<0) || (!is_numeric(trim($val['fundtransfer-details']['total_expenditure_incurred_inkind']))))
+				{					
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Total expenditure incurred = '.((trim($val['fundtransfer-details']['total_expenditure_incurred_inkind'])=='') ? '': $val['fundtransfer-details']['total_expenditure_incurred_inkind']),
+					
+			        'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+			        );		 				
+		        }								
+				if($val['fundtransfer-details']['central_share_expenditure_incurred_inkind']<0)
+				{					
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Central share expenditure incurred = '.((trim($val['fundtransfer-details']['central_share_expenditure_incurred_inkind'])=='') ? '': $val['fundtransfer-details']['central_share_expenditure_incurred_inkind']),
+					
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			        );		 				
+		        }									
+				if($val['fundtransfer-details']['normative_state_share_expenditure_incurred_inkind']<0)
+				{					
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Normative state share expenditure incurred = '.((trim($val['fundtransfer-details']['normative_state_share_expenditure_incurred_inkind'])=='') ? '': $val['fundtransfer-details']['normative_state_share_expenditure_incurred_inkind']),
+					
+			        'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+			        );		 				
+		        }						
+				if($val['fundtransfer-details']['additional_state_share_expenditure_incurred_inkind']<0)
+				{					
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Additional state share expenditure incurred = '.((trim($val['fundtransfer-details']['additional_state_share_expenditure_incurred_inkind'])=='') ? '': $val['fundtransfer-details']['additional_state_share_expenditure_incurred_inkind']),
+					
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			        );		 				
+		        }				
+				if($val['fundtransfer-details']['state_share_expenditure_incurred_to_additional_beneficiaries_inkind']<0)
+				{					
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'State share expenditure incurred to additional beneficiaries = '.((trim($val['fundtransfer-details']['state_share_expenditure_incurred_to_additional_beneficiaries_inkind'])=='') ? '': $val['fundtransfer-details']['state_share_expenditure_incurred_to_additional_beneficiaries_inkind']),
+					
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			        );		 				
+		        }
+              if($val['transaction-details']['dbt_expenditure_incurred_inkind']<0)
+				{		
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'DBT expenditure incurred = '.((trim($val['transaction-details']['dbt_expenditure_incurred_inkind'])=='') ? '': $val['transaction-details']['dbt_expenditure_incurred_inkind']),
+			       'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed ',
+			         );	 				
+		        }
+
+                if(trim($val['transaction-details']['dbt_expenditure_incurred_inkind'])>trim($val['fundtransfer-details']['total_expenditure_incurred_inkind']))
+		        {		
+			
+				   				   				   
+				   $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'DBT expenditure incurred : '.((trim($val['transaction-details']['dbt_expenditure_incurred_inkind'])=='') ? '':$val['transaction-details']['dbt_expenditure_incurred_inkind']).' <= '.((trim($val['fundtransfer-details']['total_expenditure_incurred_inkind'])=='') ? '':$val['fundtransfer-details']['total_expenditure_incurred_inkind']),
+				   
+			       'values'=>'DBT expenditure incurred should be less than or equal to total expenditure incurred ',
+			        );				   				 				
+		        } 				
+		    }
+			if(count($benefit_type) > 1 && in_array(1, $benefit_type) && in_array(2, $benefit_type))	
+            { 		
+				if(($val['fundtransfer-details']['total_fund_transferred_cash']<0) || (!is_numeric(trim($val['fundtransfer-details']['total_fund_transferred_cash']))))
+				{						
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Total fund transferred = '.((trim($val['fundtransfer-details']['total_fund_transferred_cash'])=='') ? '': $val['fundtransfer-details']['total_fund_transferred_cash']),
+			        'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+			         );				
+				}										
+				if($val['fundtransfer-details']['central_share_fund_transferred_cash']<0)
+				{						
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'central share fund transferred = '.((trim($val['fundtransfer-details']['central_share_fund_transferred_cash'])=='') ? '': $val['fundtransfer-details']['central_share_fund_transferred_cash']),
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed ',
+			         );				
+				}									
+				if($val['fundtransfer-details']['normative_state_share_fund_transferred_cash']<0)
+				{						
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Normative state share fund transferred = '.((trim($val['fundtransfer-details']['normative_state_share_fund_transferred_cash'])=='') ? '': $val['fundtransfer-details']['normative_state_share_fund_transferred_cash']),
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			         );				
+				}											
+				if($val['fundtransfer-details']['additional_state_share_fund_transferred_cash']<0)
+				{						
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Additional state share fund transferred = '.((trim($val['fundtransfer-details']['additional_state_share_fund_transferred_cash'])=='') ? '': $val['fundtransfer-details']['additional_state_share_fund_transferred_cash']),
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			         );				
+				}				
+				if($val['fundtransfer-details']['state_share_fund_transferred_to_additional_beneficiaries_cash']<0)
+				{						
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'State share fund transferred to additional beneficiaries = '.((trim($val['fundtransfer-details']['state_share_fund_transferred_to_additional_beneficiaries_cash'])=='') ? '': $val['fundtransfer-details']['state_share_fund_transferred_to_additional_beneficiaries_cash']),
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			         );				
+				}											
+				if($val['fundtransfer-details']['central_share_expenditure_incurred_inkind']<0)
+				{						
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Central share expenditure incurred = '.((trim($val['fundtransfer-details']['central_share_expenditure_incurred_inkind'])=='') ? '': $val['fundtransfer-details']['central_share_expenditure_incurred_inkind']),
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			         );				
+				}											
+				if($val['fundtransfer-details']['normative_state_share_expenditure_incurred_inkind']<0)
+				{						
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Normative state share expenditure incurred = '.((trim($val['fundtransfer-details']['normative_state_share_expenditure_incurred_inkind'])=='') ? '': $val['fundtransfer-details']['normative_state_share_expenditure_incurred_inkind']),
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			         );				
+				}							
+				if($val['fundtransfer-details']['additional_state_share_expenditure_incurred_inkind']<0)
+				{						
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Additional state share expenditure incurred = '.((trim($val['fundtransfer-details']['additional_state_share_expenditure_incurred_inkind'])=='') ? '': $val['fundtransfer-details']['additional_state_share_expenditure_incurred_inkind']),
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			         );				
+				}				
+				if($val['fundtransfer-details']['state_share_expenditure_incurred_to_additional_beneficiaries_inkind']<0)
+				{						
+					$error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'State share expenditure incurred to additional beneficiaries = '.((trim($val['fundtransfer-details']['state_share_expenditure_incurred_to_additional_beneficiaries_inkind'])=='') ? '': $val['fundtransfer-details']['state_share_expenditure_incurred_to_additional_beneficiaries_inkind']),
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			         );				
+				}
+				
+				 if($val['fundtransfer-details']['total_fund_transferred_cash']!=$sum_payment_cash)
+		        {				
+                     $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Total fund transferred : '.((trim($val['fundtransfer-details']['total_fund_transferred_cash'])=='') ? '':$val['fundtransfer-details']['total_fund_transferred_cash']).' &#8800; '.((trim($val['transaction-details']['payment_electronic_modes_cash'])=='') ? '': $val['transaction-details']['payment_electronic_modes_cash']).' + '.((trim($val['transaction-details']['payment_other_modes_cash'])=='') ? '':$val['transaction-details']['payment_other_modes_cash']),
+			        'values'=>'Total fund transferred should be equal to the sum of payments through Electronic modes + Non-electronic modes',
+			        );				
+		        }						
+                if(($val['fundtransfer-details']['total_expenditure_incurred_inkind']<0) || (!is_numeric(trim($val['fundtransfer-details']['total_expenditure_incurred_inkind']))))
+				{											
+				    $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'Total expenditure incurred = '.((trim($val['fundtransfer-details']['total_expenditure_incurred_inkind'])=='') ? '': $val['fundtransfer-details']['total_expenditure_incurred_inkind']),
+				   
+			        'values'=>'Should not be negative(-ve) or blank. Also should not contain any alphabet or special character only positive(+ve) numeric value is allowed',
+			        );																	 				
+		        }
+				if(round($val['fundtransfer-details']['total_fund_transferred_cash'],2) != round($sum_fund_transferred_cash,2))
+		        {															
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			        'label'=>'Total fund transferred : '.((trim($val['fundtransfer-details']['total_fund_transferred_cash'])=='') ? '':$val['fundtransfer-details']['total_fund_transferred_cash']).' &#8800; '.((trim($val['fundtransfer-details']['central_share_fund_transferred_cash'])=='') ? '':$val['fundtransfer-details']['central_share_fund_transferred_cash']).'+'.((trim($val['fundtransfer-details']['normative_state_share_fund_transferred_cash'])=='') ? '':$val['fundtransfer-details']['normative_state_share_fund_transferred_cash']).'+'.((trim($val['fundtransfer-details']['additional_state_share_fund_transferred_cash'])=='') ? '':$val['fundtransfer-details']['additional_state_share_fund_transferred_cash']).'+'.((trim($val['fundtransfer-details']['state_share_fund_transferred_to_additional_beneficiaries_cash'])=='') ? '':$val['fundtransfer-details']['state_share_fund_transferred_to_additional_beneficiaries_cash']),
+					
+			        'values'=>'Total fund transferred should be equal to the sum of fund transferred through Central share + Normative State share + Additional State share + State share of fund transferred to additional beneficiaries',
+				   	
+			        );													 				
+		        }
+				if(round($val['fundtransfer-details']['total_expenditure_incurred_inkind'],2) != round($sum_expenditure_incurred_inkind,2))
+		        {		
+																					
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'Total expenditure incurred : '.((trim($val['fundtransfer-details']['total_expenditure_incurred_inkind'])=='') ? '':$val['fundtransfer-details']['total_expenditure_incurred_inkind']).' &#8800; '.((trim($val['fundtransfer-details']['central_share_expenditure_incurred_inkind'])=='') ? '':$val['fundtransfer-details']['central_share_expenditure_incurred_inkind']).' + '.((trim($val['fundtransfer-details']['normative_state_share_expenditure_incurred_inkind'])=='') ? '':$val['fundtransfer-details']['normative_state_share_expenditure_incurred_inkind']).' + '.((trim($val['fundtransfer-details']['additional_state_share_expenditure_incurred_inkind'])=='') ? '':$val['fundtransfer-details']['additional_state_share_expenditure_incurred_inkind']).' + '.((trim($val['fundtransfer-details']['state_share_expenditure_incurred_to_additional_beneficiaries_inkind'])=='') ? '':$val['fundtransfer-details']['state_share_expenditure_incurred_to_additional_beneficiaries_inkind']),
+				   
+			       'values'=>'Total expenditure incurred should be equal to the sum of expenditure incurred through Central share + Normative state share + Additional State share + State share of expenditure incurred to additional beneficiaries ',
+				   	
+			        );						
+		        }
+
+				if($val['transaction-details']['dbt_expenditure_incurred_inkind']<0)
+				{		
+			        $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'DBT expenditure incurred = '.((trim($val['transaction-details']['dbt_expenditure_incurred_inkind'])=='') ? '': $val['transaction-details']['dbt_expenditure_incurred_inkind']),
+			       'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed ',
+			         );	 				
+		        }						
+			   if(trim($val['transaction-details']['dbt_expenditure_incurred_inkind'])>trim($val['fundtransfer-details']['total_expenditure_incurred_inkind']))
+		        {		
+			
+				   				   				   
+				   $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'DBT expenditure incurred : '.((trim($val['transaction-details']['dbt_expenditure_incurred_inkind'])=='') ? '':$val['transaction-details']['dbt_expenditure_incurred_inkind']).' <= '.((trim($val['fundtransfer-details']['total_expenditure_incurred_inkind'])=='') ? '':$val['fundtransfer-details']['total_expenditure_incurred_inkind']),
+				   
+			       'values'=>'DBT expenditure incurred should be less than or equal to total expenditure incurred ',
+			        );				   				 				
+		        } 			
+               if($val['transaction-details']['total_no_transactions_electronic_modes_cash']<0)
+				{											
+				    $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'Total no transactions electronic modes = '.((trim($val['transaction-details']['total_no_transactions_electronic_modes_cash'])=='') ? '': $val['transaction-details']['total_no_transactions_electronic_modes_cash']),
+				   
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			        );																	 				
+		        }
+			   if($val['transaction-details']['payment_electronic_modes_cash']<0)
+				{											
+				    $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'Payment electronic modes = '.((trim($val['transaction-details']['payment_electronic_modes_cash'])=='') ? '': $val['transaction-details']['payment_electronic_modes_cash']),
+				   
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			        );																	 				
+		        }
+			   if($val['transaction-details']['total_no_transactions_other_modes_cash']<0)
+				{											
+				    $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'Total no transactions other modes = '.((trim($val['transaction-details']['total_no_transactions_other_modes_cash'])=='') ? '': $val['transaction-details']['total_no_transactions_other_modes_cash']),
+				   
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			        );																	 				
+		        }
+			   if($val['transaction-details']['payment_other_modes_cash']<0)
+				{											
+				    $error_report_array[$val['location']['state_code']]['error'][$i++]=array(
+			       'label'=>'Payment other modes = '.((trim($val['transaction-details']['payment_other_modes_cash'])=='') ? '': $val['transaction-details']['payment_other_modes_cash']),
+				   
+			        'values'=>'Should not be negative(-ve). Also should not contain any alphabet or special character olny positive(+ve) numeric value is allowed',
+			        );																	 				
+		        }				
+            }		              			  								
+	    }
+		
+	$i++;
+	} 
+	
+	// beneficiary comulative check
+	// condition expect from these scheme ids 624-pahal,674-mgnrega, 1026-pds.
+	$scheme_ids_arr = array(624,674,1026);
+	if(!in_array($schemeid, $scheme_ids_arr)){
+		$data_month = intval($datamonth);
+		$prev_month_data_array = array();
+		if($data_month != 4){
+			global $con;
+			$fy_year = $start.'_'.$end;
+			$result = mysqli_query($con,"SELECT SUM(no_beneficiaries_normative) as total_no_beneficiaries_normative, SUM(no_beneficiaries_digitised) as total_no_beneficiaries_digitised, SUM(no_beneficiaries_aadhaar) as total_no_beneficiaries_aadhaar, SUM(no_beneficiaries_mobile) as total_no_beneficiaries_mobile, reporting_month FROM dbt_scheme_beneficiary_data where scheme_id = $schemeid and financial_year = '$fy_year' group by reporting_month");		
+			while($ben_data_res = mysqli_fetch_object($result)){
+				$prev_month_data_array[$ben_data_res->reporting_month] = array(
+					'total_no_beneficiaries_normative' => $ben_data_res->total_no_beneficiaries_normative,
+					'total_no_beneficiaries_digitised' => $ben_data_res->total_no_beneficiaries_digitised,
+					'total_no_beneficiaries_aadhaar' => $ben_data_res->total_no_beneficiaries_aadhaar,
+					'total_no_beneficiaries_mobile' => $ben_data_res->total_no_beneficiaries_mobile
+				);
+			}
+			
+			$result_log = mysqli_query($con,"SELECT SUM(no_beneficiaries_normative) as total_no_beneficiaries_normative, SUM(no_beneficiaries_digitised) as total_no_beneficiaries_digitised, SUM(no_beneficiaries_aadhaar) as total_no_beneficiaries_aadhaar, SUM(no_beneficiaries_mobile) as total_no_beneficiaries_mobile, reporting_month FROM dbt_scheme_beneficiary_data_log1 where scheme_id = $schemeid and financial_year = '$fy_year' group by reporting_month");
+			while($ben_log_data_res = mysqli_fetch_object($result_log)){
+				$prev_month_data_array[$ben_log_data_res->reporting_month] = array(
+					'total_no_beneficiaries_normative' => $ben_log_data_res->total_no_beneficiaries_normative,
+					'total_no_beneficiaries_digitised' => $ben_log_data_res->total_no_beneficiaries_digitised,
+					'total_no_beneficiaries_aadhaar' => $ben_log_data_res->total_no_beneficiaries_aadhaar,
+					'total_no_beneficiaries_mobile' => $ben_log_data_res->total_no_beneficiaries_mobile
+				);
+			}
+			krsort($prev_month_data_array);
+			if($data_month < 4){
+				$year = $end;
+			} else {
+				$year = $start;
+			}
+			$data_month_day = '1-'.$data_month.'-'.$year;
+			if($prev_month_data_array){
+				$check_data_arr = array();
+				for($j=1;$j<=12;$j++){
+					$check_month = intval(date("m", strtotime("$data_month_day -1 month")));
+					if(isset($prev_month_data_array[$check_month])){
+						$check_data_arr = $prev_month_data_array[$check_month];
+					}
+					if($check_data_arr){
+						$j=15;
+					} else {
+						$data_month_day = date("d-m-Y", strtotime("$data_month_day -1 month"));
+					}
+				} // end for
+				if($check_data_arr){
+					$error_report_array['00']=array(
+							'state_code'=>'00',
+							'state_name'=>'Nation Wise',
+							'district_code'=>'',
+							'district_name'=>'',
+							'error'=>array()
+							);
+					if($check_data_arr['total_no_beneficiaries_normative']>$comulative_no_of_beneficiaries)
+					{											
+						$error_report_array['00']['error'][$i++]=array(
+					   'label'=>'Total No Of Beneficiary = '.$comulative_no_of_beneficiaries.' < '.$check_data_arr['total_no_beneficiaries_normative'],
+					   
+						'values'=>'Total no of beneficiary should be greater than or equal to last reported month total beneficiary for this fynancial year',
+						);		
+					}
+					if($check_data_arr['total_no_beneficiaries_digitised']>$comulative_no_of_beneficiaries_record_digitized)
+					{											
+						$error_report_array['00']['error'][$i++]=array(
+					   'label'=>'Total No Of Digitised Beneficiary = '.$comulative_no_of_beneficiaries_record_digitized.' < '.$check_data_arr['total_no_beneficiaries_digitised'],
+					   
+						'values'=>'Total no of digitised beneficiary should be greater than or equal to last reported month total digitised beneficiary for this fynancial year',
+						);	
+					}
+					if($check_data_arr['total_no_beneficiaries_aadhaar']>$comulative_no_of_authenticated_seeded_beneficiaries)
+					{											
+						$error_report_array['00']['error'][$i++]=array(
+					   'label'=>'Total No Of Aadhaar Beneficiary = '.$comulative_no_of_authenticated_seeded_beneficiaries.' < '.$check_data_arr['total_no_beneficiaries_aadhaar'],
+					   
+						'values'=>'Total no of aadhaar beneficiary should be greater than or equal to last reported month total aadhaar beneficiary for this fynancial year',
+						);		
+					}
+					if($check_data_arr['total_no_beneficiaries_mobile']>$comulative_no_of_beneficiaries_whom_mobile_no_captured)
+					{											
+						$error_report_array['00']['error'][$i++]=array(
+					   'label'=>'Total No Of Beneficiary Whome Mobile No Captured = '.$comulative_no_of_beneficiaries_whom_mobile_no_captured.' < '.$check_data_arr['total_no_beneficiaries_mobile'],
+					   
+						'values'=>'Total no of beneficiary whome mobile no captured should be greater than or equal to last reported month total beneficiary whome mobile no captured for this fynancial year',
+						);		
+					}
+				}
+			} // end prev month data check
+		} // end data month check
+	}
+	
+	$error = 0;
+	foreach($error_report_array as $key_error =>$val_error){
+		if(count($val_error['error']) > 0){
+			$error++;
+		}
+	}
+	
+	$returnvalue['error_result'] = $error;
+	$returnvalue['log'] = $txt;
+	
+	if($error > 0 ) {
+		$returnvalue['error'] = $error_report_array;
+		$returnvalue['validation_message'] = 'Web-service validation failed';
+	} 
+	else {
+		$returnvalue['error'] = '';
+	}
+	// print '<pre>'; print_r($returnvalue); die;
+	return $returnvalue;
+} // generalValidation end
+
+
+
+//Send validation error email
+function validation_error_email ($error_report_array,$schemeid,$datamonth,$benefit_type,$start,$end,$nodalp_email,$cc_email){
+	
+	global $con;	
+	$msg_body = '';	
+	
+	$datainfo = mysqli_query($con,"SELECT sm.scheme_type_id as scheme_type, sm.scheme_code, sd.scheme_name, m.ministry_name, e.scheme_eligibility_type_id as dbt_eligibility_type FROM dbt_scheme_master as sm JOIN dbt_scheme_details as sd on sm.scheme_id = sd.scheme_id JOIN dbt_ministry_details as m on sm.ministry_id = m.ministry_id JOIN dbt_scheme_eligibility_type_relation as e on sm.scheme_id = e.scheme_id where sm.scheme_id = '".$schemeid."'");
+	
+	$datainfocount = mysqli_fetch_object($datainfo);
+	$nodalp_email = implode(',', $nodalp_email); 
+	$cc_email = implode(',', $cc_email); 
+	$scheme_type = $datainfocount->scheme_type; 		
+	$scheme_name=$datainfocount->scheme_name;
+	$ministry_name=$datainfocount->ministry_name;
+	$scheme_codification=$datainfocount->scheme_code;
+	$data_updated = date('d/m/Y h:i:s a');
+
+	$month_num = $datamonth;
+	$month_name = date("M", mktime(0, 0, 0, $month_num, 10));
+	$year_name = date("Y");
+	if(intval($month_num)<=3){$f_year= $end;} else{$f_year= $start;}
+	
+	if (count($benefit_type) == 1 && in_array(1, $benefit_type)) {
+		$benefit_type_name = "CASH";
+	} else if (count($benefit_type) == 1 && in_array(2, $benefit_type)) {
+		$benefit_type_name = "In Kind";
+	} else if (count($benefit_type) > 1 && in_array(1, $benefit_type) && in_array(2, $benefit_type)) {
+		$benefit_type_name = "Cash and In Kind";
+	} else {
+		$benefit_type_name = "";
+	}
+	
+	$subject = "DBT Web-service rejection alert: ".$ministry_name." (".$scheme_codification."), " . $month_name."-".$f_year; 
+
+	$message = '<span style="font-size:14px">Dear User,
+	<br>Web-service response for below mentioned scheme and month has been rejected by DBT Bharat Portal. Please find the web-service response validation alert details updated on '.$data_updated.'.</span><br><br>';
+	
+	$message .= '<table style="font-family:Trebuchet MS, Arial, Helvetica, sans-serif;border-collapse: collapse;width: 100%;">';
+	$message .= '<tr><td width="52%" style="border: 1px solid #ddd;padding: 8px;"><b>Ministry Name</b></td><td style="border: 1px solid #ddd;padding: 8px;">'.$ministry_name.'</td></tr>';
+	$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Scheme Name</b></td><td style="border: 1px solid #ddd;padding: 8px;">'.$scheme_name.'</td></tr>';
+	$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Scheme Code</b></td><td style="border: 1px solid #ddd;padding: 8px;">'.$scheme_codification.'</td></tr>';
+	$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Benefit Type</b></td><td style="border: 1px solid #ddd;padding: 8px;">'.$benefit_type_name.'</td></tr>';
+	$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Month, Financial Year</b></td><td style="border: 1px solid #ddd;padding: 8px;">'.$month_name.', '.$start.'-'.substr($end,2,7).'</td></tr>';	
+	$message .='</table><br>';
+	$msg_body .= "<table style='border-collapse: collapse;width: 100%;'><tr style='border: 1px solid #ddd;padding: 8px;padding-top: 12px;padding-bottom: 12px;color: white;background-color:#999999'><th style='border: 1px solid #ddd; font-size:14px'>STATE/UT(LGD CODE)</th><th style='border: 1px solid #ddd; font-size:14px'> WEB-SERVICE RESPONSE VALIDATION DETAILS </th></tr>";
+		
+	foreach($error_report_array as $key_error =>$val_error){
+		if(count($val_error['error']) > 0){
+			 $response = true; 
+			$msg_body .='<tr><td style="text-align:center;border: 1px solid #c3c2c2;padding: 8px;background-color:#ddd"><b>'.$val_error['state_name'].'('.$val_error['state_code'].')</b></td><td  style="border: 1px solid #c3c2c2;padding: 8px; background-color: #ddd;" ><b>COMMENTS FOR CORRECTION</b></td></tr>'; 
+				foreach($val_error as $key_error1 =>$val_error1){
+					if(is_array($val_error1)){
+						foreach($val_error1 as $key_error2 =>$val_error2){
+							$msg_body .='<tr>';
+							$msg_body .='<td  style="border: 1px solid #ddd;padding: 8px;">'.$val_error2['label'].'</td>'; 
+							$msg_body .='<td style="border: 1px solid #ddd;padding: 8px;">'.$val_error2['values'].'</td>';
+							$msg_body .='</tr>';
+						}
+					}
+			}
+		}	
+	}
+
+	$msg_body .='</table>';
+
+    $msg_body .= '<span style="font-size:14px"><br>You are requested to take corrective action and confirm DBT Mission Technical Team for submitting the data through manual web-service mode.<br>We recommend to implement similar validations at your end to avoid rejection. <br><br>Thanks and Regards,<br>DBT Mission<br> DBT helpline: 011-2374-0715<br> Mail-ID: feedback@dbtbharat.gov.in <br><br>[This is a system generated email]</span>';
+	$body =$message.$msg_body;
+	
+	$recipient_email    = $nodalp_email;
+	$cc 				= $cc_email;
+	$sender_name   		= 'MPR Alert';
+	$message        	= $body;
+	
+	$sentMail = send_mail($recipient_email, $cc, $sender_name, $subject, $message);		
+	return $sentMail;
+} // validation_error_email end
+
+// web-service execution log function
+function webserviceauditlogfunction($scheme_id, $data_day = null, $data_month, $financial_year,$is_updated, $is_success, $remarks, $webservice_execution_mode=null,$webservice_executed_for_date=null, $request_ip = null, $error_code = null){
+	global $con;
+	$created = date('Y-m-d H:i:s');
+	$sql = "INSERT INTO dbt_center_webservice_execution_log (scheme_id, data_day, data_month, financial_year, is_updated, is_success, error_code, remarks, webservice_execution_mode, webservice_executed_for_date, ip_address, created) VALUES ('$scheme_id', '$data_day', '$data_month', '$financial_year', '$is_updated', '$is_success', '$error_code', '$remarks', '$webservice_execution_mode', '$webservice_executed_for_date', '$request_ip', '$created')";
+	mysqli_query($con, $sql);
+	if($error_code > 0){
+		$lastinsertedid = mysqli_insert_id($con);
+		$sql_query = "INSERT INTO dbt_failed_center_webservice_details (webservice_execution_log_id, ip_address, created) VALUES ($lastinsertedid,'$request_ip', '$created')";
+		mysqli_query($con, $sql_query);
+	}
+}
+
+// update webservice status if service failed
+function update_webservice_status($webservice_id){
+	global $con;
+	if($webservice_id){
+		$sql = "UPDATE dbt_webservice_details SET webservice_status = 0 WHERE webservice_id = $webservice_id";
+		mysqli_query($con, $sql);
+	}
+}
+
+//Send mail for webservice schedule response //$to='feedback@dbtbharat.gov.in'
+function schemeSuccessDataMail($subject, $schemecode, $date, $rootpath, $filename, $ccto='', $to=''){
+	global $con;
+	$ccto='feedback@dbtbharat.gov.in, bk.pujari@nic.in';
+	$dailyarray = array('AP34D','BXASD');
+	$web_link = 'https://dbtbharat.gov.in';
+	$response = '';
+	$schemeid = '';
+	$scheme_name = '';
+	$fund_per_msg = '';
+	$data_updated = date('d/m/Y h:i:s a');
+	$servicedate = date('d/m/Y', strtotime($date)); //date('d/m/Y');
+	$requestdate = date('d-m-Y', strtotime($date)); //date('d-m-Y');
+
+	//calculate financial Year
+	if(in_array($schemecode, $dailyarray)){
+		$curre_year = strtotime($requestdate);
+		$fixedyear = strtotime(date("d-m-Y", strtotime("31-03-".date("Y")))); // for daily reporting data else "30-04".date("Y")
+		if($curre_year > $fixedyear){
+		  $start = date("Y");
+		}else if($curre_year <= $fixedyear){
+		  $start = date("Y")-1;
+		}
+		$end = $start+1;
+		$timeGet = $start."_".$end;
+		$datamonth = date("m",strtotime($requestdate));
+		$dataday = date("d",strtotime($requestdate));
+	}else{
+		$curre_year = strtotime($requestdate);
+		$fixedyear = strtotime(date("d-m-Y", strtotime("30-04-".date("Y")))); // for monthly reporting data else "31-03".date("Y")
+		if($curre_year > $fixedyear){
+			$start = date("Y");
+		}else if($curre_year <= $fixedyear){
+			$start = date("Y")-1;
+		}
+		$end = $start+1;
+		$timeGet = $start."_".$end;
+		$datestring= $date.' first day of last month';
+		$dt=date_create($datestring);
+		$datamonth = $dt->format('m');
+	}
+
+	$result = mysqli_query($con,"SELECT id,scheme_type as benefit_type,scheme_table,scheme_name,ministry_id FROM dbt_scheme where scheme_codification = "."'".$schemecode."'"."and language = 2");
+	$schemeinfo = mysqli_fetch_object($result);
+	$schemeid = $schemeinfo->id;
+    $scheme_name=$schemeinfo->scheme_name;
+    $subject = 'MPR: '.$scheme_name.'('.$schemecode.')';
+    // getting ministry name 
+	$ministry_name_query = mysqli_query($con,"SELECT mini.id,mini.ministry_name,cell.email FROM dbt_ministry as mini LEFT JOIN dbt_users as users on mini.id=users.ministry_name LEFT JOIN dbt_cell as cell ON users.id=cell.user_id where mini.id='".$schemeinfo->ministry_id."'");
+	$ministryinfo = mysqli_fetch_object($ministry_name_query);
+	$ministry_name = $ministryinfo->ministry_name;
+	$to = str_replace(array('[at]','[dot]'),array('@','.'),$ministryinfo->email); //nodal officer mail
+	if($schemeinfo->ministry_id == 1) {
+		$to = 'roop.avtar@nic.in'; // DoRD
+	}
+
+	$scheme_drilldown_link = $web_link.'/auth/login?redirect-page=schemereport/schemedrilldown';
+	$monthwise_progess_link = $web_link.'/auth/login?redirect-page='.urlencode('monthwiseprogress/schemereport?year='.$timeGet.'&ministry='.base64_encode($schemeinfo->ministry_id).'&scheme='.base64_encode($schemeid).'&Search=');
+
+	if($schemeinfo->benefit_type==1) $benfit_type="CASH";
+	elseif($schemeinfo->benefit_type==2) $benfit_type="In Kind";
+	elseif($schemeinfo->benefit_type==5) $benfit_type="Cash and In Kind";
+	elseif($schemeinfo->benefit_type==6) $benfit_type="Services";
+	elseif($schemeinfo->benefit_type==7) $benfit_type="Service Enabler";
+
+	if($datamonth==1) $month="January";  
+	elseif($datamonth==2) $month="February";   
+	elseif($datamonth==3) $month="March";   
+	elseif($datamonth==4) $month="April";   
+	elseif($datamonth==5) $month="May";   
+	elseif($datamonth==6) $month="June";   
+	elseif($datamonth==7) $month="July";   
+	elseif($datamonth==8) $month="August";   
+	elseif($datamonth==9) $month="September";   
+	elseif($datamonth==10) $month="October";   
+	elseif($datamonth==11) $month="November";   
+	elseif($datamonth==12) $month="December"; 
+
+	$overall_scheme_budget = '';
+	$dbt_applicable_component_fund_allocation = '';
+	$total_no_of_beneficiaries = '';
+	$no_of_authenticated_seeded_beneficiaries = '';
+	$total_fund_transferred_cash = '';
+	$payment_electronic_modes_cash = '';
+	$payment_electronic_perct = 0;
+	$total_expenditure_incurred_inkind = '';
+	$dbt_expenditure_incurred_inkind = '';
+	$other_saving_process_improvement = '';
+	$savings = '';
+
+	$ministryownerdataquery = mysqli_query($con,"SELECT * FROM dbt_ministry_owner where onboarded_scheme_id = $schemeid");
+	$ministryownerdata = mysqli_fetch_object($ministryownerdataquery);
+	$overall_scheme_budget = $ministryownerdata->overall_scheme_budget;
+	$dbt_applicable_component_fund_allocation = $ministryownerdata->applicable_component_fund_allocation;
+	
+	// find scheduled date
+	$scheduledquery = mysqli_query($con,"SELECT webservice_scheduled_date_time FROM dbt_mis_tracker where scheme_id = $schemeid");
+	$scheduleddaterow = mysqli_fetch_object($scheduledquery);
+	$scheduleddate = $scheduleddaterow->webservice_scheduled_date_time;
+	if($scheduleddate){
+		if ($schemeid == 3 || $schemeid == 1){
+			$scheduledtime = date('H:i:s', strtotime($scheduleddate));
+			$scheduleddatetime = date('d/m/Y H:i:s', strtotime($date.' '.$scheduledtime));
+		} else {
+			$scheduledday = date('d', strtotime($scheduleddate));
+			$scheduledtime = date('H:i:s', strtotime($scheduleddate));
+			$schedulemonthyear = date('m-Y',strtotime($date));
+			$scheduleddatetime = date('d/m/Y H:i:s', strtotime($scheduledday.'-'.$schedulemonthyear.' '.$scheduledtime));
+		}
+	}
+	
+	/*if(!is_array($getValue[0]['general-information']['overall_scheme_budget'])){
+		$overall_scheme_budget=$getValue[0]['general-information']['overall_scheme_budget'];   
+	}
+	if(!is_array($getValue[0]['general-information']['dbt_applicable_component_fund_allocation'])){
+		$dbt_applicable_component_fund_allocation=$getValue[0]['general-information']['dbt_applicable_component_fund_allocation'];   
+	}*/
+	
+	if ($datamonth == 01) {
+		$prevdatamonth = 12;
+	} else {
+		$prevdatamonth = $datamonth - 1;
+	}
+	if($prevdatamonth < 10) {
+		$prevdatamonth = '0'.$prevdatamonth;
+	}
+	$prevmaunalbenquery = mysqli_query($con,"SELECT * FROM dbt_beneficaryscheme where month = ".$prevdatamonth." and financial_year_from = ".$start." and financial_year_to =".$end." and scheme_id = $schemeid");
+	$prevmaunalbeneficiaries = mysqli_fetch_object($prevmaunalbenquery);
+	
+	$maunaldataquery = mysqli_query($con,"SELECT * FROM dbt_scheme_manual_data where month = ".$datamonth." and financial_year_from = ".$start." and financial_year_to =".$end." and scheme_id = $schemeid");
+	$maunaldata = mysqli_fetch_object($maunaldataquery);
+
+	$maunalbenquery = mysqli_query($con,"SELECT * FROM dbt_beneficaryscheme where month = ".$datamonth." and financial_year_from = ".$start." and financial_year_to =".$end." and scheme_id = $schemeid");
+	$maunalbeneficiaries = mysqli_fetch_object($maunalbenquery);
+
+	if(in_array($schemecode, $dailyarray)){
+		$tablename = "dbt_".$schemeinfo->scheme_table."_".$timeGet;
+		$bendataquery = mysqli_query($con,"SELECT sum(total_no_of_beneficiaries) as total_no_ben, sum(total_no_of_beneficiaries_with_aadhaar) as total_no_ben_aadhaar FROM ".$tablename." where month = "."'".$datamonth."'"."and day = ".$dataday);
+		$bendataresult = mysqli_fetch_object($bendataquery);
+		$trdataquery = mysqli_query($con,"SELECT sum(grand_total_centre_share_state_share) as total_amt, sum(saving) as saving, sum(total_no_of_beneficiaries_reduced) as other_saving FROM ".$tablename." where month = ".$datamonth);
+		$trdataresult = mysqli_fetch_object($trdataquery);
+	}
+	
+	if(mysqli_num_rows($maunalbenquery)>0){
+		$total_no_of_beneficiaries_display = $total_no_of_beneficiaries = $maunalbeneficiaries->totalnoofbeneficiaries;   
+		$no_of_authenticated_seeded_beneficiaries_display = $no_of_authenticated_seeded_beneficiaries = $maunalbeneficiaries->totalnoofbeneficiarieswithaadhaar;  
+		$perctangebeneficiareswithaadhaarseeded_display = $perctangebeneficiareswithaadhaarseeded = (($total_no_of_beneficiaries>0)?(round(($no_of_authenticated_seeded_beneficiaries/$total_no_of_beneficiaries*100), 2)):0);		
+		$other_saving_process_improvement=$maunalbeneficiaries->total_other_beneficiaries;   
+		if(in_array($schemecode, $dailyarray)){
+			if($total_no_of_beneficiaries <= $bendataresult->total_no_ben){
+				$total_no_of_beneficiaries='';
+			}
+			if($no_of_authenticated_seeded_beneficiaries <= $bendataresult->total_no_ben_aadhaar){
+				$no_of_authenticated_seeded_beneficiaries='';
+			}
+			if($total_no_of_beneficiaries_display == $bendataresult->total_no_ben && $no_of_authenticated_seeded_beneficiaries_display == $bendataresult->total_no_ben_aadhaar){
+				$perctangebeneficiareswithaadhaarseeded='';
+			}
+			if($trdataresult->other_saving == '' || $other_saving_process_improvement == $trdataresult->other_saving){
+				$other_saving_process_improvement='';
+			}
+		} else if ($datamonth != 04) {
+			if($maunalbeneficiaries->totalnoofbeneficiaries == $prevmaunalbeneficiaries->totalnoofbeneficiaries) {
+				$total_no_of_beneficiaries='';
+			}
+			if($maunalbeneficiaries->totalnoofbeneficiarieswithaadhaar == $prevmaunalbeneficiaries->totalnoofbeneficiarieswithaadhaar) {
+				$no_of_authenticated_seeded_beneficiaries='';
+			}
+			if($maunalbeneficiaries->totalnoofbeneficiaries == $prevmaunalbeneficiaries->totalnoofbeneficiaries && $maunalbeneficiaries->totalnoofbeneficiarieswithaadhaar == $prevmaunalbeneficiaries->totalnoofbeneficiarieswithaadhaar) {
+				$perctangebeneficiareswithaadhaarseeded='';
+			}
+		}
+	}
+	if(mysqli_num_rows($maunaldataquery)>0){
+		$total_fund_transferred_cash=$maunaldata->total_fund_transfer;   
+		$payment_electronic_modes_cash=$maunaldata->without_aadhar_bridge_payment; 
+		$payment_electronic_perct=(($total_fund_transferred_cash>0)?(round(($payment_electronic_modes_cash/$total_fund_transferred_cash*100), 2)):0);
+		$total_expenditure_incurred_inkind=$maunaldata->total_expenditure;   
+		$dbt_expenditure_incurred_inkind=$maunaldata->no_of_beneficiries_with_aadhar;  
+		$savings=$maunaldata->saving;  
+		if(in_array($schemecode, $dailyarray)){
+			if($trdataresult->total_amt == ''){
+				$total_fund_transferred_cash='';
+				$payment_electronic_modes_cash='';
+				$payment_electronic_perct='';
+			}
+			if($trdataresult->saving == '' || $savings == $trdataresult->saving){
+				$savings='';
+			}
+		}		
+	}
+	
+	//Send E-Mail With Attachment
+	$message = '<span style="font-family:Trebuchet MS, Arial, Helvetica, sans-serif;font-size:14px">Dear User,
+	<br><br>Please find the scheme data updated on '.$data_updated.'</span><br><br>';
+	$message .= '<table style="font-family:Trebuchet MS, Arial, Helvetica, sans-serif;border-collapse: collapse;width: 100%;">';
+	$message .= '<tr><td width="52%" style="border: 1px solid #ddd;padding: 8px;"><b>Ministry Name</b></td><td style="border: 1px solid #ddd;padding: 8px;">'.$ministry_name.'</td></tr>';
+	$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Scheme Name</b></td><td style="border: 1px solid #ddd;padding: 8px;">'.$scheme_name.'</td></tr>';
+	$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Scheme Code</b></td><td style="border: 1px solid #ddd;padding: 8px;">'.$schemecode.'</td></tr>';
+	$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Benefit Type</b></td><td style="border: 1px solid #ddd;padding: 8px;">'.$benfit_type.'</td></tr>';
+	$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Month, Financial Year</b></td><td style="border: 1px solid #ddd;padding: 8px;">'.$month.', '.$start.'-'.substr($end,2,7).'</td></tr>';
+	
+	// if($overall_scheme_budget>=0){
+		// $message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Overall Scheme Budget(in &#x20B9;)</b></td><td style="border: 1px solid #ddd;padding: 8px;">'.(($overall_scheme_budget>0)?currencyData($overall_scheme_budget):$overall_scheme_budget).'</td></tr>';
+	// }else{
+		// $message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Overall Scheme Budget(in &#x20B9;)</b></td><td style="border: 1px solid #ddd;padding: 8px;background-color:#DD938B">Not Reported</td></tr>';	
+	// }
+	// if($dbt_applicable_component_fund_allocation>=0){
+		// $message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>DBT Applicable Component Fund Allocation(in &#x20B9;)</b></td><td style="border: 1px solid #ddd;padding: 8px;">'.(($dbt_applicable_component_fund_allocation>0)?currencyData($dbt_applicable_component_fund_allocation):$dbt_applicable_component_fund_allocation).'</td></tr>';
+	// }else{
+		// $message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>DBT Applicable Component Fund Allocation(in &#x20B9;)</b></td><td style="border: 1px solid #ddd;padding: 8px;background-color:#DD938B">Not Reported</td></tr>';	
+	// }
+	
+	$message .= '</table><br><table style="font-family:Trebuchet MS, Arial, Helvetica, sans-serif;border-collapse: collapse;width: 100%;">';
+	$message .= '<tr><th colspan=2 style="border: 1px solid #ddd;padding: 8px;padding-top: 12px;padding-bottom: 12px;color: white;background-color:#999999">Monthly Progress Report</th><th style="border: 1px solid #ddd;color: white;background-color:#999999">Updated(Yes/No)</th></tr>';
+	$message .= '<tr><td width="52%" style="text-align:center;border: 1px solid #ddd;padding: 8px;background-color:#D3D3D3"><b>Field</b></td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;background-color:#D3D3D3"><b>Value</b></td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;background-color:#D3D3D3"></td></tr>';
+	$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Total No. of Beneficiaries</b></td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.(($total_no_of_beneficiaries_display>0)?currencyData($total_no_of_beneficiaries_display):$total_no_of_beneficiaries_display).'</td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.((trim($total_no_of_beneficiaries) == "")?'No':'Yes').'</td></tr>';
+	$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>No. of Aadhaar Authenticated and Seeded Beneficiaries</b></td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.(($no_of_authenticated_seeded_beneficiaries_display>0)?currencyData($no_of_authenticated_seeded_beneficiaries_display):$no_of_authenticated_seeded_beneficiaries_display).'</td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.((trim($no_of_authenticated_seeded_beneficiaries) == "")?'No':'Yes').'</td></tr>';
+	
+	$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Beneficiaries seeded with Aadhaar %</b></td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.$perctangebeneficiareswithaadhaarseeded_display.' %</td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.((trim($perctangebeneficiareswithaadhaarseeded) == "")?'No':'Yes').'</td></tr>';
+	
+	if($schemeinfo->benefit_type == 1 || $schemeinfo->benefit_type == 3 || $schemeinfo->benefit_type == 5){
+	$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Total Fund Transfer(in &#x20B9;)</b></td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.(($total_fund_transferred_cash>0)?currencyData($total_fund_transferred_cash):$total_fund_transferred_cash).'</td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.((trim($total_fund_transferred_cash) == "")?'No':'Yes').'</td></tr>';
+	$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Electronic Fund Transfer(in &#x20B9;)</b></td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.(($payment_electronic_modes_cash>0)?currencyData($payment_electronic_modes_cash):$payment_electronic_modes_cash).'</td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.((trim($payment_electronic_modes_cash) == "")?'No':'Yes').'</td></tr>';
+		if($payment_electronic_perct<95){
+			$fund_per_msg = '# - Electronic Fund is less than 95%';
+			$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Electronic Fund Transfer %</b></td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;background-color:#DD938B">'.$payment_electronic_perct.'%<span><sup> #</sup></span></td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.((trim($payment_electronic_perct) == "")?'No':'Yes').'</td></tr>';
+		}else{
+			$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Electronic Fund Transfer %</b></td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.$payment_electronic_perct.'%</td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.((trim($payment_electronic_perct) == "")?'No':'Yes').'</td></tr>';
+		}
+	}
+	if($schemeinfo->benefit_type == 2 || $schemeinfo->benefit_type == 5){
+		$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Total Expenditure(in &#x20B9;)</b></td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.(($total_expenditure_incurred_inkind>0)?currencyData($total_expenditure_incurred_inkind):$total_expenditure_incurred_inkind).'</td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.((trim($total_expenditure_incurred_inkind) == "")?'No':'Yes').'</td></tr>';
+		$message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Total Expenditure incurred through Aadhaar Authentication / Validated Transaction(in &#x20B9;)</b></td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.(($dbt_expenditure_incurred_inkind>0)?currencyData($dbt_expenditure_incurred_inkind):$dbt_expenditure_incurred_inkind).'</td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.((trim($dbt_expenditure_incurred_inkind) == "")?'No':'Yes').'</td></tr>';
+	}
+	
+	// $message .= '<tr><td style="border: 1px solid #ddd;padding: 8px;"><b>Other savings due to process 
+		// improvement / efficiency(in &#x20B9;)</b></td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.(($other_saving_process_improvement>0)?currencyData($other_saving_process_improvement):$other_saving_process_improvement).'</td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.((trim($other_saving_process_improvement) == "")?'No':'Yes').'</td></tr>';
+	// $message .= '<tr>
+		// <td style="border: 1px solid #ddd;padding: 8px;"><b>Savings Amount (total savings for the month )(in &#x20B9;)</b></td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.(($savings>0)?currencyData($savings):$savings).'</td><td style="text-align:center;border: 1px solid #ddd;padding: 8px;">'.((trim($savings) == "")?'No':'Yes').'</td></tr>';
+		
+	$message .= '</table><br><span style="font-family:Trebuchet MS, Arial, Helvetica, sans-serif;font-size:14px"><b>Section-I(General Information) and Section-V(Savings) would be updated only through manual mode at DBT Bharat Portal.</b></span><br><span style="font-family:Trebuchet MS, Arial, Helvetica, sans-serif;font-size:14px">Data updated through webservice. Webservice Scheduled Date: '.$scheduleddatetime.'</span><br><span style="font-family: Trebuchet MS, Arial, Helvetica, sans-serif;font-size:14px"><a href= "'.$scheme_drilldown_link.'" target="_blank">Click Here</a> to view Scheme DrillDown Report on DBT Bharat Portal</span><br><span style="font-family: Trebuchet MS, Arial, Helvetica, sans-serif;font-size:14px"><a href= "'.$monthwise_progess_link.'" target="_blank">Click Here</a> to view Month Wise Progress Report on DBT Bharat Portal</span><br><br>';
+	$message .= $fund_per_msg.'<span style="font-family:Trebuchet MS, Arial, Helvetica, sans-serif;font-size:14px"><br><br>Thanks and Regards,<br>DBT Mission<br><br>[This is a system generated email]</span>';
+	
+	//echo $message;die;
+
+	$recipient_email    = $to;
+	$cc = '';
+	if($ccto!=''){
+		$cc = $cc.', '.$ccto;
+	}
+	$sender_name    = 'MPR Alert';
+	
+	$sentMail = send_mail($recipient_email, $cc, $sender_name, $subject, $message);
+    if($sentMail) //output success or failure messages
+    {      
+      $response = 'Thank you for your email';
+    }else{
+      $response = 'Could not send mail! Please check your PHP mail configuration.';
+    }
+	return $response;
+} //schemeMail end here

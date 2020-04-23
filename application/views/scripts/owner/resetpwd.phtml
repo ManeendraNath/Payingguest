@@ -1,0 +1,51 @@
+<h2 class="btn btn-block btn-danger col-sm-12"> Sign-in </h2>
+<?php
+$postUrl = $this->url(array(
+    'controller' => 'Owner',
+    'action' => 'resetpwd'
+        ));
+?>
+        <form role="form" method="post" action="<?php echo $postUrl; ?>" name="reset-owner" id="reset-owner">
+    <?php if ($this->form->getMessages()) { ?>
+        <div><ul>
+                <?php
+                $form_errors = $this->form->getMessages();
+				
+                foreach ($form_errors as $field => $arrErrors) {
+                    echo '<li>' . $this->formErrors($arrErrors) . '</li>';
+                }
+                ?>
+            </ul></div>
+			
+	<?php } ?>
+	  <div class="site-section site-section-sm">
+      <div class="container">
+        <div class="row">
+		<?php
+    if ($this->errorMessage) {
+        echo "<h7 class='alert-danger'>" . $this->errorMessage . "</h7>";
+    }
+    ?>
+         <div class="col-md-12 col-lg-8 mb-5">
+          
+                 <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+                  <label class="font-weight-bold" for="email">Email</label>
+                  <?php echo $this->form->emailaddress; ?>
+                </div>
+              </div>
+			  <div>
+			   <?php echo $this->form->token; ?>
+			   </div>
+                  
+            <div class="col-md-12 col-sm-12 text-center">
+            <div class="form-group">
+			<div align="left">
+                <input id="Submit1" type="submit" value="resetpassword" name="submit" />
+            </div>
+        </div>   
+		</div>
+        </div>
+        </div>  
+        </form>
+          

@@ -1,0 +1,49 @@
+<?php
+$customerhome_details = $this-> customerhome_details;
+//print_r($customerhome_details);
+//die;
+?> 
+<div class="cntnt">
+    <ol class="breadcrumb  margin_top100">
+  </ol>
+<?php
+$postUrl = $this->url(array(
+    'controller' => 'Image',
+    'action' => 'image1'
+        ));
+?>
+
+<!--<table style="width:100%" border="1">
+	 
+        <tr>			
+          
+			<th scope="row">Name</th>
+            
+        </tr>-->
+		<?php
+		
+        $i = 1;
+	
+ foreach ($customerhome_details as $entry):
+ 
+ { ?>
+  <!--<tr>
+    <td><img src="uploads/<?php echo $entry['image_name']; ?>"  height="183" width="275"></td>
+    
+	</tr>-->
+ <img src="uploads/<?php echo $entry['image_name']; ?>"  height="183" width="275">
+  <?php
+                $i++;
+            }
+        
+        ?>  
+		
+<?php endforeach ?>
+
+
+ 
+ 
+        
+   
+	
+ 

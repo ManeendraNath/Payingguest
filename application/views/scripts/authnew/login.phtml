@@ -1,0 +1,92 @@
+<?php
+$captchanew = new Zend_Session_Namespace('captchanew');
+$user = new Zend_Session_Namespace('user_session');
+$captchanew->captchanew = session_id();
+?>
+<script nonce="<?php echo $user->nonce_str; ?>">
+    $(document).ready(function () {
+        $('#user_name').focus();
+		
+		document.getElementById("login-form").addEventListener("submit", validate_form);
+    });
+
+//Encrypting password
+    function mixUpValues(ecyn, key1, key2) {
+        var string_val;
+        string_val = ecyn.substr(0, 12);
+        string_val += key1;
+        string_val += ecyn.substr(12, 10);
+        string_val += key2;
+        string_val += ecyn.substr(22);
+        return string_val;
+    }
+
+
+    function validate_form() {
+        if (document.frm_login.user_name.value == "" || document.frm_login.user_name.value == null) {
+            alert('Please provide valid username.');
+            document.frm_login.user_name.focus();
+            return false;
+        }
+        if (document.frm_login.user_password.value == "") {
+            alert('Password field cannot be empty.');
+            document.frm_login.user_password.focus();
+            return false;
+        }
+
+        if (document.frm_login.user_password.value != "") {
+            var hash = CryptoJS.HmacSHA256(document.frm_login.user_password.value, "");
+            document.frm_login.user_password.value = mixUpValues(hash.toString(), document.frm_login.encode_val.value, document.frm_login.encode_val1.value);
+        }
+        return true;
+    }
+</script>
+
+<section class="container-fluid mainContant" id="mainContant">
+    <section class="login height-400">
+        <div class="container login-sec">
+            <div class="col-md-12 col-sm-12 margin-bottom-10">
+                <section class="login_sec"> 
+                    <?php if ($this->success_message) { ?>	
+                        <div class="success-msg margin_top20"> <?php echo $this->escape($this->success_message); ?></div>
+                    <?php } elseif ($this->error_message) { ?>
+						<div class="error-msg margin_top20"><?php echo $this->escape($this->error_message); ?></div>
+                    <?php } ?>
+
+                    <form id="login-form" name="frm_login" method="post" >
+                        <div class="form">
+                            <h2>Login</h2>
+                            <p>
+                                <span class="fontawesome-user"><span class=" icon user"></span></span>
+                                <?php echo $this->form->user_name; ?>
+                            </p>
+                            <p>
+                                <span class="fontawesome-lock"><span class=" icon lock"></span></span>
+                                <?php echo $this->form->user_password; ?>
+                                <input name="encode_val" type="hidden" class="textbox" id="encode_val" size="37" value="<?php echo time(); ?>"/>
+                                <input name="encode_val1" type="hidden" class="textbox" id="encode_val1" size="37" value="<?php echo mt_rand(10000, 99999); ?>"/>
+                            </p>
+                            <!-----------Add Captcha Code Script----->							
+                            <p>
+                                <img src="<?php echo $this->baseUrl('cool_capcha/captcha.php'); ?>" id="captcha" class="pull-left" width="248" height="40" />
+                                <a onclick="document.getElementById('captcha').src = '<?php echo $this->baseUrl('cool_capcha/captcha.php'); ?>?' + Math.random();
+                                        document.getElementById('vercode').focus();" id="change-image" class="menu4 refresh pull-left" style="cursor:pointer"><img src="<?php echo $this->baseUrl('images/refress.png'); ?>" class ="refresh" id="refresh" /></a>
+                            </p>
+                            <p class="text-left">										
+                                <?php echo $this->form->vercode; ?>
+                                <input type="hidden"  name ="sessionCheck" value="<?php echo $captchanew->captchanew; ?>" />
+                            </p>			
+                            <!--- Captcha end -->
+                            <p>   
+                                <?php echo $this->form->submit; ?>
+                            <p><a href="<?php echo $this->baseUrl('/authnew/forgot-password'); ?>">Forgot Password?</a></p>
+                            </p>
+                        </div>
+                    </form>    
+                </section>
+                <div class="clear"></div>
+            </div>
+        </div>
+    </section>	
+</section>
+<!--End Main Contant box-->

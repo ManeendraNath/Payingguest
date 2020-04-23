@@ -1,0 +1,82 @@
+<div class="cntnt">
+    <ol class="breadcrumb  margin_top100">
+  </ol>
+   
+	<h2 class="btn btn-block btn-success col-sm-12 ">SIGN-IN </h2>
+	<center><div class="contact-us-img"><img src="<?php echo $this->baseUrl("imagesorg/index1.jpg"); ?>" alt="Contact Us" align="RIGHT"  ></div></center>
+	       
+<?php
+$postUrl = $this->url(array(
+    'controller' => 'Owner',
+    'action' => 'login'
+        ));
+?>
+        <form role="form" method="post" action="<?php echo $postUrl; ?>" name="login-owner" id="login-owner">
+    <?php if ($this->form->getMessages()) { ?>
+        <div><ul>
+                <?php
+                $form_errors = $this->form->getMessages();
+				
+                foreach ($form_errors as $field => $arrErrors) {
+                    echo '<li>' . $this->formErrors($arrErrors) . '</li>';
+                }
+                ?>
+            </ul></div>
+			
+	<?php } ?>
+	  <div class="site-section site-section-sm">
+      <div class="container">
+        <div class="row">
+		<?php
+    if ($this->errorMessage) {
+        echo "<h4 class='alert-danger'>" . $this->errorMessage . "</h4>";
+    }
+    ?>
+         <div class="col-md-12 col-lg-8 mb-5">
+          
+                
+				<div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+				<h3><center><label class="font-weight-bold" for="email">Email Address</label></h3>
+                                <h3><center><?php echo $this->form->emailaddress; ?></h3>
+                 
+               </div>
+               </div>
+                  <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+								<h3><center><label class="font-weight-bold" for="password">Password</label></h3>
+                                <h3><center><?php echo $this->form->password; ?></h3>
+                                </div>
+                                </div>
+                          
+              
+			 
+
+             
+				
+				
+								<div class="checkbox">
+                                  <label>
+                                <h3><center><input type="checkbox"> I agree to the terms of services and Privacy Policy
+                            </label></h3>
+             
+			 <div class="col-md-12 col-sm-12 text-center">
+            <div class="form-group">
+			<div align="center">
+                <h5><center><button type="submit" name="Submit" class="btn btn-default btn-warning text-center" id="sechemSearchButton">Sign in</button></h5>
+            </div>
+        </div>   
+		</div>
+                              
+								
+                           <h3><center><div class="row form-group">
+                           
+                                         <a href="<?php echo $this->baseUrl('/owner/forgetpassword'); ?>">Forget Password ?</a>
+                                    </div></h3>
+              	
+            </div></h3>
+                </div>  
+         			
+            </form>
+          
+                        

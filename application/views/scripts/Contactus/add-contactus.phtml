@@ -1,0 +1,55 @@
+<h2 class="btn btn-block btn-danger col-sm-12">Add Contact </h2>
+
+<?php
+$postUrl = $this->url(array(
+    'controller' => 'Contactus',
+    'action' => 'add-contactus'
+        ));
+?>
+<form role="form" method="post" action="<?php echo $postUrl; ?>" name="add-contactus" id="add-contactus">
+    <?php if ($this->form->getMessages()) { ?>
+        <div><ul>
+                <?php
+                $form_errors = $this->form->getMessages();
+				
+                foreach ($form_errors as $field => $arrErrors) {
+                    echo '<li>' . $this->formErrors($arrErrors) . '</li>';
+                }
+                ?>
+            </ul></div>
+			
+	<?php } ?>
+	 <?php
+    if ($this->error_message) {
+        echo "<div class='error-msg'>" . $this->error_message . "</div>";
+    }
+    ?>
+    <div class="row">
+	 <div class="form-group col-sm-6 col-xs-12">
+            <label>Name<sup class="require">*</sup></label>
+            <?php echo $this->form->name; ?>
+        </div>
+        <div class="form-group col-sm-6 col-xs-12 role-item">
+            <label>ContactNo<sup class="require">*</sup> </label>
+            <?php echo $this->form->contactno; ?>
+        </div>			
+        <div class="form-group col-sm-6 col-xs-12 state-item">
+            <label>Address <sup class="require">*</sup></label>
+            <?php echo $this->form->address; ?>
+        </div>
+        <div class="form-group col-sm-6 col-xs-12 ministry-item">
+            <label>Email <sup class="require">*</sup></label>
+            <?php echo $this->form->emailaddress; ?>
+        </div>
+
+       
+		
+    
+	
+        <div class="col-md-12 col-sm-12 text-center">
+            <div class="form-group">
+                <button type="submit" name="Submit" class="btn btn-default btn-warning text-center" id="sechemSearchButton">Submit</button>
+            </div>
+        </div>
+    </div>
+</form>

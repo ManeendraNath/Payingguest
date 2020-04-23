@@ -1,0 +1,79 @@
+<!--Start Footer-->
+
+<footer class="site-footer">
+      <div class="container">
+        
+
+        <div class="row">
+          <div class="col-md-4">
+            <h3 class="footer-heading mb-4 text-white">About Us</h3>
+            <p>Paying Guest Accomdation System is to provide user friendly environment to PG seeker at affordable prices.</p>
+            
+          </div>
+          <div class="col-md-6">
+            <div class="row">
+              <div class="col-md-6">
+                <h3 class="footer-heading mb-4 text-white">Contact Us</h3>
+                  <p><strong>Contact Address:</strong></p>
+        <p> PG,GTB Nagar,<br>
+       70A, Block 18A, VRA, GTB Nagar, <br> 
+		Delhi-110009</p>
+          </div>
+          </div>
+          </div>
+
+          
+          <div class="col-md-2">
+            <div class="col-md-12"><h3 class="footer-heading mb-4 text-white">Social Icons</h3></div>
+              <div class="col-md-12">
+                <p>
+                  <a href="#" class="pb-2 pr-2 pl-0"><span class="icon-facebook"></span></a>
+                  <a href="#" class="p-2"><span class="icon-instagram"></span></a>
+                  <a href="#" class="p-2"><span class="icon-whatsapp"></span></a>
+				  </p>
+              </div>
+          </div>
+        </div>
+        <div class="row pt-5 mt-5 text-center">
+         
+          
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="<?php echo $this->baseUrl("js/jquery-3.3.1.min.js");?>"></script>
+  <script src="<?php echo $this->baseUrl("js/jquery-migrate-3.0.1.min.js");?>"></script>
+  <script src="<?php echo $this->baseUrl("js/jquery-ui.js");?>"></script>
+  <script src="<?php echo $this->baseUrl("js/popper.min.js");?>"></script>
+  <script src="<?php echo $this->baseUrl("js/bootstrap.min.js");?>"></script>
+  <script src="<?php echo $this->baseUrl("js/owl.carousel.min.js");?>"></script>
+  <script src="<?php echo $this->baseUrl("js/jquery.stellar.min.js");?>"></script>
+  <script src="<?php echo $this->baseUrl("js/jquery.countdown.min.js");?>"></script>
+  <script src="<?php echo $this->baseUrl("js/jquery.magnific-popup.min.js");?>"></script>
+  <script src="<?php echo $this->baseUrl("js/bootstrap-datepicker.min.js");?>"></script>
+  <script src="<?php echo $this->baseUrl("js/aos.js");?>"></script>
+
+  
+  <script src="<?php echo $this->baseUrl("js/mediaelement-and-player.min.js");?>"></script>
+
+  <script src="<?php echo $this->baseUrl("js/main.js");?>"></script>
+    <!--End Footer-->
+<?php
+//echo $this->controller_name;
+if($this->controller_name!="index")
+{
+	
+?>
+<script>
+$(document).ready(function(){
+	
+$(".site-navbar-wrap").css({ 'background-color' : '', 'opacity' : '' });
+$(".js-site-navbar").removeClass("bg-white");
+$(".js-site-navbar").addClass("bg-red");
+});
+</script>
+<?php
+}
+
+?>

@@ -1,0 +1,64 @@
+
+<h2 class="btn btn-block btn-danger col-sm-12">Register </h2>
+
+        <form role="form" method="post" action="<?php echo $postUrl; ?>" name="addform" id="addform">
+    <?php if ($this->form->getMessages()) { ?>
+        <div><ul>
+                <?php
+                $form_errors = $this->form->getMessages();
+				
+                foreach ($form_errors as $field => $arrErrors) {
+                    echo '<li>' . $this->formErrors($arrErrors) . '</li>';
+                }
+                ?>
+            </ul></div>
+			
+	<?php } ?>
+	 <?php
+    if ($this->error_message) {
+        echo "<div class='error-msg'>" . $this->error_message . "</div>";
+    }
+    ?>
+                           
+                            <div class="row">
+	                               <div class="form-group col-sm-6 col-xs-12">
+                                   <label>Name<sup class="require">*</sup></label>
+                                    <?php echo $this->form->name; ?>
+                                    </div>
+									<div class="form-group col-sm-6 col-xs-12 role-item">
+                                  <label>Email Address <sup class="require">*</sup> </label>
+                                  <?php echo $this->form->emailaddress; ?>
+                                   </div>	
+								   <div class="form-group col-sm-6 col-xs-12 role-item">
+                                   <label>Mobile Number <sup class="require">*</sup> </label>
+                                   <?php echo $this->form->mobilenumber; ?>
+                                   </div>	
+									<div class="form-group col-sm-6 col-xs-12 role-item">
+                                  <label>Password <sup class="require">*</sup> </label>
+                                   <?php echo $this->form->password; ?>
+                                    </div>	
+									<div class="form-group col-sm-6 col-xs-12 role-item">
+                                 <label>Repeat Password <sup class="require">*</sup> </label>
+                             <?php echo $this->form->repeatpassword; ?>
+                                   </div>	
+                                <input name="encode_val" type="hidden" class="textbox" id="encode_val" size="37" value="<?php echo time(); ?>"/>
+                                <input name="encode_val1" type="hidden" class="textbox" id="encode_val1" size="37" value="<?php echo mt_rand(10000, 99999); ?>"/>
+                                        <div class="col-md-12 col-sm-12 text-center">
+                                         <div class="form-group">
+                           <button type="submit" name="Submit" class="btn btn-default btn-warning text-center" id="sechemSearchButton">Register</button>
+                              </div>
+                            <p> I agree to the terms of services <a href="#" > and Privacy Policy</a>.</p>
+                          
+                           
+                        </div>
+                    </form>    
+                </section>
+                <div class="clear"></div>
+            </div>
+        </div>
+		 </div>
+		  </div>
+		   </section>	
+</section>
+		
+		

@@ -1,0 +1,64 @@
+<?php
+$owner_registration_details = $this->owner_registration_details;
+?>
+<div class="cntnt">
+    <ol class="breadcrumb  margin_top10">
+	
+	
+       
+
+		</ol>
+		
+			<div class="contact-us-img"><img src="<?php echo $this->baseUrl("imagesorg/images (23).jpg"); ?>" alt="Contact Us" align="left" style="width:40%"  ></div>
+		<div class="contact-us-img"><img src="<?php echo $this->baseUrl("imagesorg/index.jpg"); ?>" alt="Contact Us" align="centre" style="width:60%"  ></div>
+    <h2 class="btn btn-block btn-success col-sm-12 ">PG Owner Details </h2>	
+    <table class="table" style="width:100%" border="1">
+        <tr>			
+
+            <th scope="row">Name</th>
+            <th scope="row">Mobile Number</th>
+            <th scope="row">Email Address</th>
+			<th scope="row">Address</th>
+			<th>Edit/Delete Owner Profile </th>
+        </tr>
+		<?php
+		
+        $i = 1;
+	
+ foreach ($owner_registration_details as $value):
+ 
+ { ?>
+  <tr>
+    <td><?php echo $value['Owner Name']; ?></td>
+    <td><?php echo $value['Contact Details']; ?></td>
+    <td><?php echo $value['Email']; ?></td>
+    <td><?php echo $value['Address'];?></td>
+	<td> 
+         <a href="<?php echo $this->url(array(
+                    'controller' => 'Owner',
+                    'action' => 'edit-ownerdetails' 
+				)) . "?id=" . base64_encode($value['Owner_id']);?>">Edit</a>  |
+		<a href="<?php echo $this->url(array(
+                    'controller' => 'Owner',
+                    'action' => 'delete-ownerdetails' 
+				)) . "?id=" . base64_encode($value['Owner_id']);?>">Delete</a> 
+         
+      </td> 
+	</tr>
+  <?php
+                $i++;
+            }
+        
+        ?>  
+		
+<?php endforeach ?>
+
+</table>
+<p>&nbsp;&nbsp;</p>
+</div>
+
+		
+		
+		
+		
+		

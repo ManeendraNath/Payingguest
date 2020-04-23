@@ -1,0 +1,57 @@
+<div class="cntnt">
+    <ol class="breadcrumb  margin_top100">
+  </ol>
+   
+	
+<h2 class="btn btn-block btn-danger col-sm-12 "> Booking Details </h2>		
+<?php
+$postUrl = $this->url(array(
+    'controller' => 'Customer',
+    'action' => 'bookings-details'
+        ));
+?>
+       
+	   <form role="form" method="post" action="<?php echo $postUrl; ?>" name="booking-details" id="booking-details">
+    <?php if ($this->form->getMessages()) { ?>
+        <div><ul>
+                <?php
+                $form_errors = $this->form->getMessages();
+				
+                foreach ($form_errors as $field => $arrErrors) {
+                    echo '<li>' . $this->formErrors($arrErrors) . '</li>';
+                }
+                ?>
+            </ul></div>
+			
+	<?php } ?>
+	  <div class="site-section site-section-sm">
+      <div class="container">
+        <div class="row">
+		<?php
+    if ($this->errorMessage) {
+        echo "<h4 class='alert-danger' >" . $this->errorMessage . "</h4>";
+    }
+    ?>    
+       
+    
+         <div class="col-md-12 col-lg-8 mb-5">
+		  <div class="row form-group">
+                <div class="col-md-12 mb-3 mb-md-0">
+								<label class="font-weight-bold" for="rooms">location</label>
+                                <?php echo $this->form->location; ?>
+               
+                </div>
+              </div>
+			  </div>
+<div class="col-md-12 col-sm-12 text-center">
+            <div class="form-group">
+			<div align="left">
+                <button type="submit" name="Submit" class="btn btn-default btn-warning text-center" id="sechemSearchButton">Submit</button>
+            </div>
+        </div>   
+		</div>
+			  </div>
+			  </div>
+			  </div>
+			  </form>
+			  </div>

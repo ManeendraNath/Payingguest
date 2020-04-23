@@ -1,0 +1,105 @@
+<?php
+$showhome_details = $this->showhome_details;
+//print_r($customerhome_details);
+//die;
+?> 
+<?php
+$postUrl = $this->url(array(
+    'controller' => 'Customer',
+    'action' => 'kaushika-pghomedetail'
+        ));
+?>
+<form role="form" method="post" action="<?php echo $postUrl; ?>" name="pg_details" id="pg_details">
+<div class="cntnt">
+    <ol class="breadcrumb  margin_top100">
+	</ol>
+ <h2 class="btn btn-block btn-danger col-sm-12 ">Kaushika PG Home Details</h2>
+ <div class="contact-us-img"><img src="<?php echo $this->baseUrl("imagesorg/download (9).jpg"); ?>" alt="Contact Us" align="left" ></div>
+	<div class="contact-us-img"><img src="<?php echo $this->baseUrl("imagesorg/images (13).jpg"); ?>" alt="Contact Us" align="left" style="width:20%"></div>
+	<div class="contact-us-img"><img src="<?php echo $this->baseUrl("imagesorg/images (15).jpg"); ?>" alt="Contact Us" align="left" style="width:20%"></div>
+	 <table style="width:100%" border="1|0">
+	 
+        <tr>			
+
+            <th scope="row">Name</th>
+            <th scope="row">Location</th>
+            <th scope="row">Rent Per Month</th>
+			<th scope="row">No.of Rooms</th>
+			<th scope="row">Address</th>
+        </tr>
+		<?php
+		
+        $i = 1;
+	
+ foreach ($showhome_details as $entry):
+ 
+ { ?>
+  <tr>
+    <td><?php echo $entry['pg_name']; ?></td>
+    <td><?php echo $entry['pg_location']; ?></td>
+    <td><?php echo $entry['pg_rent']; ?></td>
+    <td><?php echo $entry['pg_rooms'];?></td>
+	<td><?php echo $entry['pg_address'];?></td>
+	</tr>
+  <?php
+                $i++;
+            }
+        
+        ?>  
+		
+<?php endforeach ?>
+</table>
+
+ 
+        
+    <ol class="breadcrumb  margin_top1">
+	</ol>
+		  <h2 class="btn btn-block btn-danger col-sm-12 ">Room Facilities</h2>
+           
+			<table style="width:100%" border="1">
+			  <thead>
+            <tr>
+                <th  scope="row">Balcony</th>
+                <th scope="row">Electricity</th>
+                <th scope="row">CarParking</th>
+                <th scope="row">Security</th>
+				<th scope="row">Fire Exit</th>
+				<th scope="row">Fully Air Conditioned</th>
+				</tr>
+        </thead>
+        <tbody>
+		<?php
+		
+        $i = 1;
+	
+ foreach ($showhome_details as $entry):
+ 
+ { ?>
+  <tr>
+    <td><?php echo $entry['balcony']; ?></td>
+    <td><?php echo $entry['electricity']; ?></td>
+    <td><?php echo $entry['parking_area']; ?></td>
+    <td><?php echo $entry['security'];?></td>
+	<td><?php echo $entry['fireexit'];?></td>
+	<td><?php echo $entry['Airconditioned'];?></td>
+	</tr>
+  <?php
+                $i++;
+            }
+        
+        ?>  
+		
+<?php endforeach ?>
+</tbody>
+</table>
+
+    <ol class="breadcrumb  margin_top1">
+	</ol>
+ <div class="col-md-12 col-sm-12 text-center">
+            <div class="form-group">
+			 <a href="booking-details" class="btn btn-info" role="button">Book Now</a>
+               
+            </div>
+        </div>
+		</form>
+		

@@ -1,0 +1,10 @@
+
+table {
+    border:solid #DBDADA !important;
+    border-width:1px 0 0 1px !important;
+}
+th, td {
+    border:solid #DBDADA !important;
+    border-width:0 1px 1px 0 !important;
+}
+

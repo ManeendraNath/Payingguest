@@ -1,0 +1,64 @@
+<?php
+$contact_details = $this->contact_details;
+?>
+<div class="cntnt">
+<div style="background-image:url('imagesorg/background_contactus.jpg');"  >
+    <ol class="breadcrumb  margin_top100">
+	
+	
+       
+       
+
+		</ol>
+		
+    <h2 class="btn btn-block btn-info col-sm-12 ">Contact Us</h2>	
+    <h5>    <b><strong>Contact Details:</strong></p>
+      
+<p> Dharmesh<br>
+PG,GTB Nagar,<br>
+       70A, Block 18A, VRA, GTB Nagar, <br> 
+		Delhi-110009 </b>
+    </h5>
+		
+		<table class="table" style="width:100%" border="1">
+        <tr>			
+
+            <th scope="row">Name</th>
+            <th scope="row">ContactNo</th>
+            <th scope="row">Address</th>
+			<th scope="row">Email</th>
+        </tr>
+		<?php
+		
+        $i = 1;
+	
+ foreach ($contact_details as $entry):
+ 
+ { ?>
+ <tr>
+  
+    <td><?php echo $entry['Name']; ?></td>
+    <td><?php echo $entry['ContactNo']; ?></td>
+    <td><?php echo $entry['Emailaddress']; ?></td>
+    <td><?php echo $entry['Address'];?></td>
+	
+	</tr>
+  <?php
+                $i++;
+            }
+        
+        ?>  
+		
+<?php endforeach ?>
+
+</table>
+
+<p>&nbsp;&nbsp;</p>
+ </div>
+</div>
+
+		
+		
+		
+		
+		
