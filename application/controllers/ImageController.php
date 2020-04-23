@@ -49,7 +49,7 @@ class ImageController extends Zend_Controller_Action {
    //die;
   $cm_list = new Application_Model_Image;
 		 //$dataform['name']= $name.$imageFileType;
-		  $dataform['name']= $name.$imageFileType;
+		  $dataform['name']= $name.".".$imageFileType;
                 $user_record = $cm_list->insertpgDetail($dataform);
 			 //print_r($user_record);
 		     //die;
